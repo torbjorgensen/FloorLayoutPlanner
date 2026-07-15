@@ -1,0 +1,42 @@
+env
+.venv
+__pycache__
+*.zip
+PergoPlanner_web_*/
+FloorLayoutPlanner_web_*/
+stue_project_output/
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.venv/
+env/
+venv/
+
+# VSCode
+.vscode/
+
+# PyCharm
+.idea/
+
+# Build
+dist/
+build/
+
+# Python packaging
+*.egg-info/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Output
+output/
+*_output/
+*.png
+*.csv

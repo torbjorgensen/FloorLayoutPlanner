@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="nb">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Floor Layout Planner – {{ project_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+    <div>
+        <h1>Floor Layout Planner</h1>
+        <p>{{ project_name }}</p>
+    </div>
+    <div class="controls">
+        <button id="restartAllButton">Start alle rom på nytt</button>
+    </div>
+</header>
+
+<main>
+    <section class="viewer">
+        <canvas id="floorCanvas"></canvas>
+    </section>
+
+    <aside>
+        <div class="card">
+            <h2>Rom</h2>
+            <select id="roomSelect"></select>
+        </div>
+
+        <div class="card settings-card">
+            <h2>Innstillinger for <span id="selectedRoomName">rom</span></h2>
+            <form id="settingsForm">
+                <label>
+                    Leggeretning
+                    <select name="orientation">
+                        <option value="horizontal">Horisontal</option>
+                        <option value="vertical">Vertikal</option>
+                    </select>
+                </label>
+
+                <div class="two-columns">
+                    <label>
+                        Ekspansjonsfuge (mm)
+                        <input name="expansion_gap_mm" type="number" min="0" step="0.5">
+                    </label>
+                    <label>
+                        Minimum bit (mm)
+                        <input name="minimum_piece_length_mm" type="number" min="1" step="1">
+                    </label>
+                    <label>
+                        Minimum skjøteavstand (mm)
+                        <input name="minimum_joint_distance_mm" type="number" min="0" step="1">
+                    </label>
+                    <label>
+                        Forskyvning (mm)
+                        <input name="stagger_step_mm" type="number" min="1" step="1">
+                    </label>
+                </div>
+
+                <details>
+                    <summary>Flere innstillinger</summary>
+                    <div class="two-columns details-grid">
+                        <label>
+                            Bordlengde (mm)
+                            <input name="board_length_mm" type="number" min="1" step="1">
+                        </label>
+                        <label>
+                            Bordbredde (mm)
+                            <input name="board_width_mm" type="number" min="1" step="0.1">
+                        </label>
+                        <label>
+                            Søkeintervall (mm)
+                            <input name="optimization_step_mm" type="number" min="0.1" step="0.1">
+                        </label>
+                        <label>
+                            Radbredde-steg (mm)
+                            <input name="row_width_optimization_step_mm" type="number" min="0.1" step="0.1">
+                        </label>
+                        <label>
+                            Absolutt min. radbredde (mm)
+                            <input name="minimum_row_width_mm" type="number" min="1" step="1">
+                        </label>
+                        <label>
+                            Ønsket min. radbredde (mm)
+                            <input name="preferred_minimum_row_width_mm" type="number" min="1" step="1">
+                        </label>
+                        <label>
+                            Prosesser
+                            <input name="optimizer_workers" type="number" min="1" step="1">
+                        </label>
+                        <label>
+                            Vis hver N. løsning
+                            <input name="preview_every_n_results" type="number" min="1" step="1">
+                        </label>
+                        <label>
+                            Lokaloptimaliser topp N
+                            <input name="local_optimize_top_n" type="number" min="1" step="1">
+                        </label>
+                        <label>
+                            Visning per ny beste (ms)
+                            <input name="frame_delay_ms" type="number" min="0" step="1">
+                        </label>
+                        <label>
+                            Svinn (%)
+                            <input name="waste_percent" type="number" min="0" step="0.1">
+                        </label>
+                        <label>
+                            Bord per pakke
+                            <input name="boards_per_pack" type="number" min="1" step="1">
+                        </label>
+                    </div>
+                </details>
+
+                <div id="validationMessage" class="form-message"></div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary">Bruk og start rommet på nytt</button>
+                    <button type="button" id="saveConfigButton">Lagre rommet til JSON</button>
+                    <button type="button" id="resetConfigButton">Nullstill rommet</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Status</h2>
+            <p id="statusText">Kobler til …</p>
+            <progress id="progressBar" value="0" max="1"></progress>
+            <div class="room-actions">
+                <button id="pauseButton">Pause</button>
+                <button id="resumeButton">Fortsett</button>
+                <button id="restartButton">Start rommet på nytt</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Beste løsning</h2>
+            <div id="bestStats">–</div>
+        </div>
+
+        <div class="card">
+            <h2>Profilering</h2>
+            <div id="profileStats">–</div>
+        </div>
+
+        <div class="card">
+            <h2>Utdata</h2>
+            <p id="outputFiles">Lages per rom når søket er ferdig.</p>
+        </div>
+    </aside>
+</main>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

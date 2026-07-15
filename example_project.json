@@ -1,0 +1,130 @@
+{
+  "project_name": "1. etasje",
+  "board": {
+    "length_mm": 2050,
+    "width_mm": 240
+  },
+  "settings": {
+    "expansion_gap_mm": 5,
+    "minimum_piece_length_mm": 300,
+    "minimum_joint_distance_mm": 300,
+    "stagger_step_mm": 700,
+    "optimization_step_mm": 20,
+    "row_width_optimization_step_mm": 5,
+    "minimum_row_width_mm": 60,
+    "preferred_minimum_row_width_mm": 100,
+    "optimizer_workers": 8,
+    "preview_every_n_results": 25,
+    "frame_delay_ms": 40,
+    "waste_percent": 10,
+    "boards_per_pack": 8,
+    "local_optimize_top_n": 12
+  },
+  "rooms": [
+    {
+      "id": "stue",
+      "name": "Stue",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "rectangles": [
+        {
+          "name": "Hoveddel",
+          "x": 0,
+          "y": 0,
+          "width": 4600,
+          "height": 3600,
+          "outline_color": "#d62728",
+          "fill_color": "#ffd9d9",
+          "outline_alpha": 0.9,
+          "fill_alpha": 0.12
+        },
+        {
+          "name": "Vindusdel",
+          "x": 0,
+          "y": 3600,
+          "width": 3000,
+          "height": 2400,
+          "outline_color": "#2ca02c",
+          "fill_color": "#d9ffd9",
+          "outline_alpha": 0.9,
+          "fill_alpha": 0.12
+        },
+        {
+          "name": "TV-krok",
+          "x": 4600,
+          "y": 2100,
+          "width": 1500,
+          "height": 1200,
+          "outline_color": "#1f77b4",
+          "fill_color": "#d9eaff",
+          "outline_alpha": 0.9,
+          "fill_alpha": 0.12
+        }
+      ],
+      "settings": {
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": "kjokken",
+      "name": "Kjøkken",
+      "origin": {
+        "x": 6200,
+        "y": 0
+      },
+      "rectangles": [
+        {
+          "name": "Kjøkken",
+          "x": 0,
+          "y": 0,
+          "width": 3300,
+          "height": 3200,
+          "outline_color": "#9467bd",
+          "fill_color": "#eadcff",
+          "outline_alpha": 0.9,
+          "fill_alpha": 0.12
+        }
+      ],
+      "settings": {
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": "gang",
+      "name": "Gang",
+      "origin": {
+        "x": 6200,
+        "y": 3400
+      },
+      "rectangles": [
+        {
+          "name": "Langdel",
+          "x": 0,
+          "y": 0,
+          "width": 1400,
+          "height": 4200,
+          "outline_color": "#ff7f0e",
+          "fill_color": "#ffe6cc",
+          "outline_alpha": 0.9,
+          "fill_alpha": 0.12
+        },
+        {
+          "name": "Kortdel",
+          "x": 1400,
+          "y": 2800,
+          "width": 1700,
+          "height": 1400,
+          "outline_color": "#8c564b",
+          "fill_color": "#ead8d3",
+          "outline_alpha": 0.9,
+          "fill_alpha": 0.12
+        }
+      ],
+      "settings": {
+        "orientation": "vertical"
+      }
+    }
+  ]
+}

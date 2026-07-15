@@ -1,0 +1,170 @@
+{
+  "project_name": "1. etasje",
+  "board": {
+    "length_mm": 2050.0,
+    "width_mm": 240.0
+  },
+  "settings": {
+    "expansion_gap_mm": 5,
+    "minimum_piece_length_mm": 300,
+    "minimum_joint_distance_mm": 300,
+    "stagger_step_mm": 700,
+    "optimization_step_mm": 70,
+    "row_width_optimization_step_mm": 25,
+    "minimum_row_width_mm": 60,
+    "preferred_minimum_row_width_mm": 100,
+    "optimizer_workers": 8,
+    "preview_every_n_results": 25,
+    "frame_delay_ms": 40,
+    "waste_percent": 10,
+    "boards_per_pack": 8
+  },
+  "rooms": [
+    {
+      "id": "stue",
+      "name": "Stue",
+      "origin": {
+        "x": 150,
+        "y": 150
+      },
+      "rectangles": [
+        {
+          "name": "Hoveddel",
+          "x": 0,
+          "y": 0,
+          "width": 3450,
+          "height": 3200,
+          "outline_color": "#c62828",
+          "outline_alpha": 0.95,
+          "fill_color": "#ef9a9a",
+          "fill_alpha": 0.18
+        },
+        {
+          "name": "Del ved vinduer",
+          "x": 0,
+          "y": 3200,
+          "width": 5430,
+          "height": 3300,
+          "outline_color": "#2e7d32",
+          "outline_alpha": 0.95,
+          "fill_color": "#a5d6a7",
+          "fill_alpha": 0.18
+        },
+        {
+          "name": "Arm ved kjøkken",
+          "x": 5430,
+          "y": 3200,
+          "width": 1770,
+          "height": 1200,
+          "outline_color": "#1565c0",
+          "outline_alpha": 0.95,
+          "fill_color": "#90caf9",
+          "fill_alpha": 0.18
+        }
+      ],
+      "settings": {
+        "orientation": "horizontal",
+        "expansion_gap_mm": 5.0,
+        "minimum_piece_length_mm": 250.0,
+        "minimum_joint_distance_mm": 300.0,
+        "stagger_step_mm": 300.0,
+        "optimization_step_mm": 35.0,
+        "row_width_optimization_step_mm": 15.0,
+        "minimum_row_width_mm": 100.0,
+        "preferred_minimum_row_width_mm": 120.0,
+        "optimizer_workers": 8,
+        "preview_every_n_results": 25,
+        "frame_delay_ms": 40,
+        "waste_percent": 10.0,
+        "boards_per_pack": 8
+      }
+    },
+    {
+      "id": "kjokken",
+      "name": "Kjøkken",
+      "origin": {
+        "x": 4200,
+        "y": 150
+      },
+      "rectangles": [
+        {
+          "name": "Kjøkken",
+          "x": 0,
+          "y": 0,
+          "width": 3000,
+          "height": 3100,
+          "outline_color": "#6a1b9a",
+          "fill_color": "#ce93d8",
+          "outline_alpha": 0.95,
+          "fill_alpha": 0.18
+        }
+      ],
+      "settings": {
+        "orientation": "horizontal",
+        "expansion_gap_mm": 5.0,
+        "minimum_piece_length_mm": 300.0,
+        "minimum_joint_distance_mm": 300.0,
+        "stagger_step_mm": 300.0,
+        "optimization_step_mm": 35.0,
+        "row_width_optimization_step_mm": 25.0,
+        "minimum_row_width_mm": 60.0,
+        "preferred_minimum_row_width_mm": 100.0,
+        "optimizer_workers": 8,
+        "preview_every_n_results": 25,
+        "frame_delay_ms": 40,
+        "waste_percent": 10.0,
+        "local_optimize_top_n": 12,
+        "boards_per_pack": 8
+      }
+    },
+    {
+      "id": "gang",
+      "name": "Gang",
+      "origin": {
+        "x": 7400,
+        "y": 150
+      },
+      "rectangles": [
+        {
+          "name": "Vertikal del",
+          "x": 0,
+          "y": 0,
+          "width": 1700,
+          "height": 3200,
+          "outline_color": "#ef6c00",
+          "fill_color": "#ffcc80",
+          "outline_alpha": 0.95,
+          "fill_alpha": 0.18
+        },
+        {
+          "name": "Kortdel",
+          "x": 0,
+          "y": 3200,
+          "width": 5450,
+          "height": 1200,
+          "outline_color": "#00695c",
+          "fill_color": "#80cbc4",
+          "outline_alpha": 0.95,
+          "fill_alpha": 0.18
+        }
+      ],
+      "settings": {
+        "orientation": "horizontal",
+        "expansion_gap_mm": 5.0,
+        "minimum_piece_length_mm": 300.0,
+        "minimum_joint_distance_mm": 300.0,
+        "stagger_step_mm": 300.0,
+        "optimization_step_mm": 70.0,
+        "row_width_optimization_step_mm": 25.0,
+        "minimum_row_width_mm": 60.0,
+        "preferred_minimum_row_width_mm": 150.0,
+        "optimizer_workers": 8,
+        "preview_every_n_results": 5,
+        "frame_delay_ms": 40,
+        "waste_percent": 10.0,
+        "boards_per_pack": 8,
+        "local_optimize_top_n": 12
+      }
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "section_name": "Stue",
+  "coordinate_system": {
+    "origin": "top_left",
+    "x_direction": "right",
+    "y_direction": "down",
+    "unit": "mm"
+  },
+  "rectangles": [
+    {
+      "name": "Hoveddel",
+      "x": 0,
+      "y": 0,
+      "width": 4500,
+      "height": 3600,
+      "outline_color": "#d62728",
+      "fill_color": "#ffd9d9",
+      "outline_alpha": 0.9,
+      "fill_alpha": 0.15
+    },
+    {
+      "name": "Vindusdel",
+      "x": 0,
+      "y": 3600,
+      "width": 3000,
+      "height": 3000,
+      "outline_color": "#2ca02c",
+      "fill_color": "#d9ffd9",
+      "outline_alpha": 0.9,
+      "fill_alpha": 0.15
+    },
+    {
+      "name": "Arm",
+      "x": 4500,
+      "y": 2100,
+      "width": 1500,
+      "height": 1200,
+      "outline_color": "#1f77b4",
+      "fill_color": "#d9eaff",
+      "outline_alpha": 0.9,
+      "fill_alpha": 0.15
+    }
+  ],
+  "board": {
+    "length_mm": 1380,
+    "width_mm": 190
+  },
+  "settings": {
+    "orientation": "horizontal",
+    "expansion_gap_mm": 10,
+    "minimum_piece_length_mm": 300,
+    "stagger_step_mm": 460,
+    "optimization_step_mm": 20,
+    "frame_delay_ms": 100,
+    "waste_percent": 10,
+    "boards_per_pack": 8,
+    "minimum_joint_distance_mm": 300,
+    "minimum_row_width_mm": 60,
+    "preferred_minimum_row_width_mm": 100,
+    "row_width_optimization_step_mm": 5,
+    "optimizer_workers": 48,
+    "preview_every_n_results": 25
+  }
+}
