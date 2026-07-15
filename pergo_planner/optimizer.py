@@ -57,9 +57,7 @@ def _row_joint_positions(
     rows: dict[int, dict[int, list[Piece]]] = {}
 
     for piece in pieces:
-        rows.setdefault(piece.row, {}).setdefault(piece.segment, []).append(
-            piece
-        )
+        rows.setdefault(piece.row, {}).setdefault(piece.segment, []).append(piece)
 
     result: dict[int, list[float]] = {}
 

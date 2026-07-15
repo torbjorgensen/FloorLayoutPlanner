@@ -113,9 +113,7 @@ class ProjectState:
             "row_offsets": candidate.row_offsets,
             "phase": candidate.phase,
             "timings": candidate.timings,
-            "pieces": [
-                self.piece_payload(piece) for piece in candidate.pieces
-            ],
+            "pieces": [self.piece_payload(piece) for piece in candidate.pieces],
         }
 
 
@@ -128,8 +126,7 @@ def load_config(path: Path) -> dict[str, Any]:
             config = json.load(file)
     except json.JSONDecodeError as exc:
         raise ValueError(
-            f"Ugyldig JSON i {path}: linje {exc.lineno}, "
-            f"kolonne {exc.colno}: {exc.msg}"
+            f"Ugyldig JSON i {path}: linje {exc.lineno}, kolonne {exc.colno}: {exc.msg}"
         ) from exc
 
     # Backward compatibility: old one-room format.
@@ -184,9 +181,7 @@ def merged_settings(
         settings["stagger_step_mm"] = board_length / 3
 
     if settings.get("minimum_joint_distance_mm") in (None, ""):
-        settings["minimum_joint_distance_mm"] = settings[
-            "minimum_piece_length_mm"
-        ]
+        settings["minimum_joint_distance_mm"] = settings["minimum_piece_length_mm"]
 
     return settings
 
@@ -202,9 +197,7 @@ def editable_room_settings(
         "orientation": settings["orientation"],
         "expansion_gap_mm": float(settings["expansion_gap_mm"]),
         "minimum_piece_length_mm": float(settings["minimum_piece_length_mm"]),
-        "minimum_joint_distance_mm": float(
-            settings["minimum_joint_distance_mm"]
-        ),
+        "minimum_joint_distance_mm": float(settings["minimum_joint_distance_mm"]),
         "stagger_step_mm": float(settings["stagger_step_mm"]),
         "optimization_step_mm": float(settings["optimization_step_mm"]),
         "row_width_optimization_step_mm": float(
@@ -254,18 +247,12 @@ def update_room_settings(
 
     orientation = str(payload.get("orientation", "")).lower()
     if orientation not in {"horizontal", "vertical"}:
-        raise ValueError(
-            "'orientation' må være 'horizontal' eller 'vertical'."
-        )
+        raise ValueError("'orientation' må være 'horizontal' eller 'vertical'.")
 
     values = {
         "expansion_gap_mm": parse_float(payload, "expansion_gap_mm"),
-        "minimum_piece_length_mm": parse_float(
-            payload, "minimum_piece_length_mm"
-        ),
-        "minimum_joint_distance_mm": parse_float(
-            payload, "minimum_joint_distance_mm"
-        ),
+        "minimum_piece_length_mm": parse_float(payload, "minimum_piece_length_mm"),
+        "minimum_joint_distance_mm": parse_float(payload, "minimum_joint_distance_mm"),
         "stagger_step_mm": parse_float(payload, "stagger_step_mm"),
         "optimization_step_mm": parse_float(payload, "optimization_step_mm"),
         "row_width_optimization_step_mm": parse_float(
@@ -276,9 +263,7 @@ def update_room_settings(
             payload, "preferred_minimum_row_width_mm"
         ),
         "optimizer_workers": parse_int(payload, "optimizer_workers"),
-        "preview_every_n_results": parse_int(
-            payload, "preview_every_n_results"
-        ),
+        "preview_every_n_results": parse_int(payload, "preview_every_n_results"),
         "local_optimize_top_n": parse_int(payload, "local_optimize_top_n"),
         "frame_delay_ms": parse_int(payload, "frame_delay_ms"),
         "waste_percent": parse_float(payload, "waste_percent"),
@@ -304,10 +289,7 @@ def update_room_settings(
         raise ValueError("Radbredde-steg må være større enn 0.")
     if values["minimum_row_width_mm"] <= 0:
         raise ValueError("Minimum radbredde må være større enn 0.")
-    if (
-        values["preferred_minimum_row_width_mm"]
-        < values["minimum_row_width_mm"]
-    ):
+    if values["preferred_minimum_row_width_mm"] < values["minimum_row_width_mm"]:
         raise ValueError(
             "Ønsket minimum radbredde kan ikke være mindre enn absolutt minimum."
         )
@@ -446,9 +428,7 @@ def write_piece_csv(path: Path, candidate: Candidate) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Floor Layout Planner med flere rom."
-    )
+    parser = argparse.ArgumentParser(description="Floor Layout Planner med flere rom.")
     parser.add_argument("config", type=Path)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
@@ -521,12 +501,8 @@ def main() -> None:
                 board_width=float(board["width_mm"]),
                 orientation=settings["orientation"],
                 stagger_step=float(settings["stagger_step_mm"]),
-                minimum_piece_length=float(
-                    settings["minimum_piece_length_mm"]
-                ),
-                minimum_joint_distance=float(
-                    settings["minimum_joint_distance_mm"]
-                ),
+                minimum_piece_length=float(settings["minimum_piece_length_mm"]),
+                minimum_joint_distance=float(settings["minimum_joint_distance_mm"]),
                 minimum_row_width=float(settings["minimum_row_width_mm"]),
                 preferred_minimum_row_width=float(
                     settings["preferred_minimum_row_width_mm"]
@@ -584,9 +560,7 @@ def main() -> None:
 
                         for key, value in candidate.timings.items():
                             if key.endswith("_s"):
-                                totals[key] = totals.get(key, 0.0) + float(
-                                    value
-                                )
+                                totals[key] = totals.get(key, 0.0) + float(value)
 
                         room_state.profile["local_variants"] += int(
                             candidate.timings.get(
@@ -698,10 +672,7 @@ def main() -> None:
 
                     time.sleep(0.08)
 
-                if (
-                    refined_best is None
-                    or candidate.score < refined_best.score
-                ):
+                if refined_best is None or candidate.score < refined_best.score:
                     refined_best = candidate
 
                 with state.lock:
@@ -755,9 +726,7 @@ def main() -> None:
                     room_state.finished = True
                     room_state.profile["phase"] = "finished"
                     room_state.profile["eta_s"] = 0.0
-                    room_state.profile["elapsed_s"] = (
-                        time.perf_counter() - started_at
-                    )
+                    room_state.profile["elapsed_s"] = time.perf_counter() - started_at
 
         except Exception as exc:
             with state.lock:
@@ -794,9 +763,7 @@ def main() -> None:
                 "total": 0,
                 "candidates_per_second": 0.0,
                 "eta_s": None,
-                "workers": int(
-                    merged_settings(config, room)["optimizer_workers"]
-                ),
+                "workers": int(merged_settings(config, room)["optimizer_workers"]),
                 "coarse_total": 0,
                 "coarse_completed": 0,
                 "refine_total": 0,
@@ -964,9 +931,7 @@ def main() -> None:
 
     start_all(initial_config)
 
-    browser_host = (
-        "localhost" if args.host in {"0.0.0.0", "127.0.0.1"} else args.host
-    )
+    browser_host = "localhost" if args.host in {"0.0.0.0", "127.0.0.1"} else args.host
     url = f"http://{browser_host}:{args.port}"
 
     print(f"\nFloor Layout Planner kjører på: {url}")

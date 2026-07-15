@@ -84,11 +84,7 @@ def plot_plan(
             )
         )
 
-        label = (
-            rectangle.get("name")
-            or rectangle.get("id")
-            or f"Rektangel {index}"
-        )
+        label = rectangle.get("name") or rectangle.get("id") or f"Rektangel {index}"
 
         axis.text(
             float(rectangle["x"]) + float(rectangle["width"]) / 2,

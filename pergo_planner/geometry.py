@@ -4,9 +4,7 @@ from shapely.geometry import Polygon, box
 from shapely.ops import unary_union
 
 
-def build_floor_polygon(
-    rectangles: list[dict], expansion_gap: float
-) -> Polygon:
+def build_floor_polygon(rectangles: list[dict], expansion_gap: float) -> Polygon:
     parts = []
 
     for index, rectangle in enumerate(rectangles, start=1):
@@ -20,9 +18,7 @@ def build_floor_polygon(
         height = float(rectangle["height"])
 
         if width <= 0 or height <= 0:
-            raise ValueError(
-                f"Rektangel {index} må ha positiv bredde og høyde."
-            )
+            raise ValueError(f"Rektangel {index} må ha positiv bredde og høyde.")
 
         parts.append(box(x, y, x + width, y + height))
 
@@ -38,14 +34,11 @@ def build_floor_polygon(
         floor = floor.buffer(-expansion_gap, join_style=2)
 
         if floor.is_empty:
-            raise ValueError(
-                "Ekspansjonsfugen er så stor at gulvarealet forsvinner."
-            )
+            raise ValueError("Ekspansjonsfugen er så stor at gulvarealet forsvinner.")
 
         if floor.geom_type != "Polygon":
             raise ValueError(
-                "Ekspansjonsfugen delte gulvet i flere deler. "
-                "Reduser expansion_gap_mm."
+                "Ekspansjonsfugen delte gulvet i flere deler. Reduser expansion_gap_mm."
             )
 
     return floor

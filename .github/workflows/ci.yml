@@ -2,14 +2,60 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
+      - feature/**
   pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
 
 jobs:
   test:
+    name: Python 3.12
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
-      - name: Show Python version
-        run: python3 --version
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Check formatting (Black)
+        run: |
+          black --check .
+
+      - name: Check imports (isort)
+        run: |
+          isort --check-only .
+
+      - name: Lint (Ruff)
+        run: |
+          ruff check .
+
+      - name: Verify Python syntax
+        run: |
+          python -m compileall .
+
+      - name: Verify formatting
+        run: |
+          pre-commit run --all-files
+
+      # Aktiver denne når vi får på plass tester
+      #- name: Run tests
+      #  run: |
+      #    pytest

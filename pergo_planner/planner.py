@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import asdict, dataclass
-from typing import Iterable
 
 from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, box
 
@@ -277,9 +276,7 @@ def split_interval_by_board_grid(
         if end - start <= epsilon:
             continue
 
-        source_index = math.floor(
-            (((start + end) / 2) - offset) / board_length
-        )
+        source_index = math.floor((((start + end) / 2) - offset) / board_length)
         length = end - start
 
         pieces.append(
