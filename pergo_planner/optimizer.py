@@ -57,9 +57,9 @@ def _row_joint_positions(
     rows: dict[int, dict[int, list[Piece]]] = {}
 
     for piece in pieces:
-        rows.setdefault(piece.row, {}).setdefault(
-            piece.segment, []
-        ).append(piece)
+        rows.setdefault(piece.row, {}).setdefault(piece.segment, []).append(
+            piece
+        )
 
     result: dict[int, list[float]] = {}
 
@@ -133,14 +133,8 @@ def row_width_statistics(
 
     widths = [fragment.width for fragment in fragments]
 
-    very_narrow = sum(
-        width < minimum_row_width
-        for width in widths
-    )
-    narrow = sum(
-        width < preferred_minimum_row_width
-        for width in widths
-    )
+    very_narrow = sum(width < minimum_row_width for width in widths)
+    narrow = sum(width < preferred_minimum_row_width for width in widths)
 
     return narrow, very_narrow, min(widths)
 
@@ -168,15 +162,9 @@ def evaluate_pieces(
             (10**9, 10**9, 10**9, 10**9, 10**9, 0.0, 0.0),
         )
 
-    short_count = sum(
-        piece.length < minimum_piece_length
-        for piece in pieces
-    )
+    short_count = sum(piece.length < minimum_piece_length for piece in pieces)
     very_short_limit = min(100.0, minimum_piece_length)
-    very_short_count = sum(
-        piece.length < very_short_limit
-        for piece in pieces
-    )
+    very_short_count = sum(piece.length < very_short_limit for piece in pieces)
     shortest_piece = min(piece.length for piece in pieces)
 
     joint_violations = count_joint_violations(
@@ -225,11 +213,7 @@ def _problem_rows(
     minimum_piece_length: float,
 ) -> list[int]:
     return sorted(
-        {
-            piece.row
-            for piece in pieces
-            if piece.length < minimum_piece_length
-        }
+        {piece.row for piece in pieces if piece.length < minimum_piece_length}
     )
 
 
@@ -319,10 +303,7 @@ def improve_problem_rows(
 
                 offset += optimization_step
 
-            if (
-                row_best_score < best_score
-                and row_best_offset is not None
-            ):
+            if row_best_score < best_score and row_best_offset is not None:
                 row_offsets[row_number] = row_best_offset
                 best_pieces = row_best_pieces
                 best_score = row_best_score
@@ -371,13 +352,9 @@ def _candidate_from_evaluation(
     )
 
     timings = dict(timings)
-    timings["final_scoring_s"] = (
-        time.perf_counter() - evaluation_started
-    )
+    timings["final_scoring_s"] = time.perf_counter() - evaluation_started
     timings["total_s"] = sum(
-        value
-        for key, value in timings.items()
-        if key.endswith("_s")
+        value for key, value in timings.items() if key.endswith("_s")
     )
 
     return Candidate(
@@ -535,10 +512,7 @@ def build_candidate_inputs(
         transverse_offsets.append(value)
         value += row_width_optimization_step
 
-    total = (
-        len(longitudinal_offsets)
-        * len(transverse_offsets)
-    )
+    total = len(longitudinal_offsets) * len(transverse_offsets)
 
     floor_wkb = floor.wkb
     inputs = []
@@ -588,10 +562,7 @@ def _parallel_map(
     with ProcessPoolExecutor(
         max_workers=max_workers,
     ) as executor:
-        futures = [
-            executor.submit(function, item)
-            for item in inputs
-        ]
+        futures = [executor.submit(function, item) for item in inputs]
 
         for future in as_completed(futures):
             yield future.result()

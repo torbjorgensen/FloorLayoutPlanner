@@ -4,7 +4,9 @@ from shapely.geometry import Polygon, box
 from shapely.ops import unary_union
 
 
-def build_floor_polygon(rectangles: list[dict], expansion_gap: float) -> Polygon:
+def build_floor_polygon(
+    rectangles: list[dict], expansion_gap: float
+) -> Polygon:
     parts = []
 
     for index, rectangle in enumerate(rectangles, start=1):
@@ -51,8 +53,5 @@ def build_floor_polygon(rectangles: list[dict], expansion_gap: float) -> Polygon
 
 def swap_xy_polygon(polygon: Polygon) -> Polygon:
     exterior = [(y, x) for x, y in polygon.exterior.coords]
-    holes = [
-        [(y, x) for x, y in ring.coords]
-        for ring in polygon.interiors
-    ]
+    holes = [[(y, x) for x, y in ring.coords] for ring in polygon.interiors]
     return Polygon(exterior, holes)

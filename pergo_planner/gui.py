@@ -81,13 +81,17 @@ class LiveOptimizerWindow:
         info.pack(side=tk.RIGHT, fill=tk.Y)
         info.pack_propagate(False)
 
-        ttk.Label(info, text="Nåværende løsning", font=("", 12, "bold")).pack(anchor="w")
+        ttk.Label(info, text="Nåværende løsning", font=("", 12, "bold")).pack(
+            anchor="w"
+        )
         self.current_var = tk.StringVar(value="–")
         ttk.Label(info, textvariable=self.current_var, justify=tk.LEFT).pack(
             anchor="w", pady=(4, 18)
         )
 
-        ttk.Label(info, text="Beste hittil", font=("", 12, "bold")).pack(anchor="w")
+        ttk.Label(info, text="Beste hittil", font=("", 12, "bold")).pack(
+            anchor="w"
+        )
         self.best_var = tk.StringVar(value="–")
         ttk.Label(info, textvariable=self.best_var, justify=tk.LEFT).pack(
             anchor="w", pady=(4, 18)
@@ -109,7 +113,9 @@ class LiveOptimizerWindow:
         if self.finished:
             return
         self.running = not self.running
-        self.pause_button.configure(text="Pause" if self.running else "Fortsett")
+        self.pause_button.configure(
+            text="Pause" if self.running else "Fortsett"
+        )
         if self.running:
             self.root.after(1, self._next_candidate)
 

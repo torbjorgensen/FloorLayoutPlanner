@@ -91,10 +91,8 @@ def plot_plan(
         )
 
         axis.text(
-            float(rectangle["x"])
-            + float(rectangle["width"]) / 2,
-            float(rectangle["y"])
-            + float(rectangle["height"]) / 2,
+            float(rectangle["x"]) + float(rectangle["width"]) / 2,
+            float(rectangle["y"]) + float(rectangle["height"]) / 2,
             label,
             ha="center",
             va="center",
@@ -126,9 +124,7 @@ def plot_plan(
     )
 
     axis.set_aspect("equal", adjustable="box")
-    axis.set_title(
-        f"{section_name} – laminatplan ({orientation})"
-    )
+    axis.set_title(f"{section_name} – laminatplan ({orientation})")
     axis.set_xlabel("X (mm) →")
     axis.set_ylabel("Y (mm) ↓")
     axis.grid(True, linewidth=0.2)
