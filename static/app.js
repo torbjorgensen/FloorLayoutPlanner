@@ -17,6 +17,10 @@ let latestState = null;
 let selectedRoomId = null;
 let formRoomId = null;
 let refreshInProgress = false;
+let renderedPieceHitboxes = [];
+let hoveredPieceKey = null;
+let hoveredSourceBoardIndex = null;
+let hoverTooltip = null;
 
 
 function selectedRoom() {
@@ -362,17 +366,28 @@ function statusForRoom(room) {
     const connection =
         continuousConnectionForRoom(room.id);
     const continuous = connection?.continuous;
+    const progress = continuous?.profile || {};
 
     if (continuous?.error) {
         return {
-            text: `Feil i sammenhengende beregning: ${continuous.error}`,
+            text: `Feil i overgangsberegning: ${continuous.error}`,
             kind: "error",
         };
     }
 
     if (continuous?.running) {
+        const percent = Number(progress.percent || 0);
+        const etaText =
+            progress.eta_s !== null
+            && progress.eta_s !== undefined
+                ? ` – ca. ${formatSeconds(progress.eta_s)} igjen`
+                : "";
+
         return {
-            text: "Optimaliserer stue og kjøkken mot samme overgang …",
+            text:
+                `${progress.message || "Optimaliserer overgang"}`
+                + ` – ${formatNumber(percent, 1)} %`
+                + etaText,
             kind: "running",
         };
     }
@@ -434,25 +449,20 @@ function statusForRoom(room) {
 
 function updateProgress(room, connection) {
     const continuous = connection?.continuous;
-    const continuousCandidate =
-        continuous?.candidate;
+    const progress = continuous?.profile;
 
-    if (
-        continuous?.running
-        && continuousCandidate
-    ) {
-        progressBar.max = Math.max(
-            1,
-            Number(
-                continuousCandidate.total_attempts || 1,
-            ),
+    if (continuous?.running && progress) {
+        progressBar.max = 100;
+        progressBar.value = Math.max(
+            0,
+            Math.min(100, Number(progress.percent || 0)),
         );
-        progressBar.value = Math.min(
-            progressBar.max,
-            Number(
-                continuousCandidate.attempt || 0,
-            ),
-        );
+        return;
+    }
+
+    if (continuous?.finished) {
+        progressBar.max = 100;
+        progressBar.value = 100;
         return;
     }
 
@@ -838,6 +848,7 @@ function drawFloorPieces(x, y, scale) {
                 x,
                 y,
                 scale,
+                roomId,
             );
 
             renderedByContinuous.add(roomId);
@@ -863,6 +874,7 @@ function drawFloorPieces(x, y, scale) {
             x,
             y,
             scale,
+            room.id,
         );
     }
 }
@@ -1050,6 +1062,8 @@ function drawRoomOutlines(x, y) {
 
 
 function draw() {
+    renderedPieceHitboxes = [];
+
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
 
@@ -1075,6 +1089,20 @@ function draw() {
 }
 
 
+function pieceKey(piece, roomId = "") {
+    return [
+        roomId,
+        piece.row,
+        piece.segment,
+        piece.piece,
+        piece.x1,
+        piece.y1,
+        piece.x2,
+        piece.y2,
+    ].join(":");
+}
+
+
 function drawPieces(
     pieces,
     minimumPieceLength,
@@ -1082,41 +1110,256 @@ function drawPieces(
     x,
     y,
     scale,
+    roomId = "",
 ) {
     for (const piece of pieces || []) {
         const isShort =
             minimumPieceLength > 0
             && piece.length < minimumPieceLength;
+        const key = pieceKey(piece, roomId);
+        const sameSource =
+            hoveredSourceBoardIndex !== null
+            && piece.source_board_index
+                === hoveredSourceBoardIndex;
+        const isHovered = key === hoveredPieceKey;
 
-        context.fillStyle = isShort
-            ? "#ffd6d6"
-            : (
-                selected
-                    ? "#dff2df"
-                    : "#edf3ed"
-            );
-        context.strokeStyle = isShort
-            ? "#b00020"
-            : "#667a66";
-        context.lineWidth = isShort
-            ? 2
-            : 0.8;
+        context.fillStyle = isHovered
+            ? "#ffe082"
+            : sameSource
+                ? "#fff3bf"
+                : isShort
+                    ? "#ffd6d6"
+                    : (
+                        selected
+                            ? "#dff2df"
+                            : "#edf3ed"
+                    );
+
+        context.strokeStyle = isHovered
+            ? "#b26a00"
+            : sameSource
+                ? "#d39e00"
+                : isShort
+                    ? "#b00020"
+                    : "#667a66";
+
+        context.lineWidth = isHovered
+            ? 3
+            : sameSource
+                ? 2
+                : isShort
+                    ? 2
+                    : 0.8;
+
+        const screenX = x(piece.x1);
+        const screenY = y(piece.y1);
+        const screenWidth =
+            (piece.x2 - piece.x1) * scale;
+        const screenHeight =
+            (piece.y2 - piece.y1) * scale;
 
         context.fillRect(
-            x(piece.x1),
-            y(piece.y1),
-            (piece.x2 - piece.x1) * scale,
-            (piece.y2 - piece.y1) * scale,
+            screenX,
+            screenY,
+            screenWidth,
+            screenHeight,
         );
 
         context.strokeRect(
-            x(piece.x1),
-            y(piece.y1),
-            (piece.x2 - piece.x1) * scale,
-            (piece.y2 - piece.y1) * scale,
+            screenX,
+            screenY,
+            screenWidth,
+            screenHeight,
         );
+
+        renderedPieceHitboxes.push({
+            key,
+            roomId,
+            piece,
+            x1: screenX,
+            y1: screenY,
+            x2: screenX + screenWidth,
+            y2: screenY + screenHeight,
+            minimumPieceLength,
+        });
     }
 }
+
+
+function ensureHoverTooltip() {
+    if (hoverTooltip) {
+        return hoverTooltip;
+    }
+
+    hoverTooltip = document.createElement("div");
+    hoverTooltip.id = "boardHoverTooltip";
+    hoverTooltip.style.position = "fixed";
+    hoverTooltip.style.zIndex = "1000";
+    hoverTooltip.style.pointerEvents = "none";
+    hoverTooltip.style.display = "none";
+    hoverTooltip.style.maxWidth = "280px";
+    hoverTooltip.style.padding = "9px 11px";
+    hoverTooltip.style.borderRadius = "8px";
+    hoverTooltip.style.background = "rgba(20, 20, 20, 0.94)";
+    hoverTooltip.style.color = "#fff";
+    hoverTooltip.style.font = "13px/1.35 sans-serif";
+    hoverTooltip.style.boxShadow =
+        "0 4px 18px rgba(0, 0, 0, 0.24)";
+    document.body.appendChild(hoverTooltip);
+
+    return hoverTooltip;
+}
+
+
+function sourceBoardFragments(sourceBoardIndex) {
+    return renderedPieceHitboxes.filter(
+        item =>
+            item.piece.source_board_index
+            === sourceBoardIndex,
+    );
+}
+
+
+function hoverInfoHtml(hitbox) {
+    const piece = hitbox.piece;
+    const fragments = sourceBoardFragments(
+        piece.source_board_index,
+    );
+    const roomIds = [
+        ...new Set(
+            fragments
+                .map(item => item.roomId)
+                .filter(Boolean),
+        ),
+    ];
+    const isShort =
+        hitbox.minimumPieceLength > 0
+        && piece.length
+            < hitbox.minimumPieceLength;
+    const crossesRooms = roomIds.length > 1;
+    const isCut =
+        !piece.is_full_length
+        || fragments.length > 1;
+
+    return `
+        <strong>Bord ${piece.source_board_index}</strong><br>
+        Rom: ${hitbox.roomId || "–"}<br>
+        Rad ${piece.row}, segment ${piece.segment}, bit ${piece.piece}<br>
+        Lengde: ${formatNumber(piece.length, 0)} mm<br>
+        Bredde: ${formatNumber(piece.width, 0)} mm<br>
+        Kapp: ${isCut ? "ja" : "nei"}<br>
+        Hele bordlengden: ${piece.is_full_length ? "ja" : "nei"}<br>
+        Fragmenter fra samme bord: ${fragments.length}<br>
+        ${crossesRooms
+            ? `Delt ved overgang mellom: ${roomIds.join(" / ")}<br>`
+            : ""}
+        ${isShort
+            ? `<span style="color:#ffaaaa">Kortere enn minimum ${formatNumber(hitbox.minimumPieceLength)} mm</span>`
+            : ""}
+    `;
+}
+
+
+function findHoveredPiece(canvasX, canvasY) {
+    for (
+        let index = renderedPieceHitboxes.length - 1;
+        index >= 0;
+        index -= 1
+    ) {
+        const hitbox = renderedPieceHitboxes[index];
+
+        if (
+            canvasX >= hitbox.x1
+            && canvasX <= hitbox.x2
+            && canvasY >= hitbox.y1
+            && canvasY <= hitbox.y2
+        ) {
+            return hitbox;
+        }
+    }
+
+    return null;
+}
+
+
+canvas.addEventListener("mousemove", event => {
+    const rectangle = canvas.getBoundingClientRect();
+    const canvasX = event.clientX - rectangle.left;
+    const canvasY = event.clientY - rectangle.top;
+    const hitbox = findHoveredPiece(
+        canvasX,
+        canvasY,
+    );
+    const tooltip = ensureHoverTooltip();
+
+    if (!hitbox) {
+        const changed =
+            hoveredPieceKey !== null
+            || hoveredSourceBoardIndex !== null;
+
+        hoveredPieceKey = null;
+        hoveredSourceBoardIndex = null;
+        tooltip.style.display = "none";
+
+        if (changed) {
+            draw();
+        }
+
+        return;
+    }
+
+    const changed =
+        hoveredPieceKey !== hitbox.key
+        || hoveredSourceBoardIndex
+            !== hitbox.piece.source_board_index;
+
+    hoveredPieceKey = hitbox.key;
+    hoveredSourceBoardIndex =
+        hitbox.piece.source_board_index;
+
+    tooltip.innerHTML = hoverInfoHtml(hitbox);
+    tooltip.style.display = "block";
+
+    const offset = 14;
+    const tooltipWidth = tooltip.offsetWidth;
+    const tooltipHeight = tooltip.offsetHeight;
+
+    let left = event.clientX + offset;
+    let top = event.clientY + offset;
+
+    if (left + tooltipWidth > window.innerWidth - 8) {
+        left = event.clientX - tooltipWidth - offset;
+    }
+
+    if (top + tooltipHeight > window.innerHeight - 8) {
+        top = event.clientY - tooltipHeight - offset;
+    }
+
+    tooltip.style.left = `${Math.max(8, left)}px`;
+    tooltip.style.top = `${Math.max(8, top)}px`;
+
+    if (changed) {
+        draw();
+    }
+});
+
+
+canvas.addEventListener("mouseleave", () => {
+    const changed =
+        hoveredPieceKey !== null
+        || hoveredSourceBoardIndex !== null;
+
+    hoveredPieceKey = null;
+    hoveredSourceBoardIndex = null;
+
+    if (hoverTooltip) {
+        hoverTooltip.style.display = "none";
+    }
+
+    if (changed) {
+        draw();
+    }
+});
 
 
 async function refreshState() {

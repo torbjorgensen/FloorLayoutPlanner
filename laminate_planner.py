@@ -87,6 +87,21 @@ class ContinuousState:
         self.best: Candidate | None = None
         self.cut_plan = None
         self.room_pieces: dict[str, list] = {}
+        self.profile: dict[str, Any] = {
+            "phase": "idle",
+            "completed": 0,
+            "total": 0,
+            "percent": 0.0,
+            "elapsed_s": 0.0,
+            "eta_s": None,
+            "candidates_per_second": 0.0,
+            "workers": 0,
+            "coarse_total": 0,
+            "coarse_completed": 0,
+            "refine_total": 0,
+            "refine_completed": 0,
+            "message": "Venter",
+        }
         self.generation = 0
 
 
@@ -807,7 +822,56 @@ def main() -> None:
             )
             workers = int(settings_a["optimizer_workers"])
             top_n = min(int(settings_a["local_optimize_top_n"]), len(inputs))
+            started_at = time.perf_counter()
+            coarse_total = len(inputs)
+            refine_total = top_n
+            total = coarse_total + refine_total + 1
+
+            def update_continuous_progress(
+                *,
+                phase: str,
+                completed: int,
+                message: str,
+                coarse_completed: int,
+                refine_completed: int,
+            ) -> None:
+                elapsed = max(time.perf_counter() - started_at, 1e-9)
+                rate = completed / elapsed
+                remaining = max(total - completed, 0)
+                eta = remaining / rate if rate > 0 else None
+
+                with state.lock:
+                    current_state = state.continuous[connection.connection_id]
+                    if generation != current_state.generation:
+                        return
+                    current_state.profile.update(
+                        {
+                            "phase": phase,
+                            "completed": completed,
+                            "total": total,
+                            "percent": (100.0 * completed / total if total else 0.0),
+                            "elapsed_s": elapsed,
+                            "eta_s": eta,
+                            "candidates_per_second": rate,
+                            "workers": workers,
+                            "coarse_total": coarse_total,
+                            "coarse_completed": coarse_completed,
+                            "refine_total": refine_total,
+                            "refine_completed": refine_completed,
+                            "message": message,
+                        }
+                    )
+
+            update_continuous_progress(
+                phase="coarse",
+                completed=0,
+                message="Grovsøker overgang",
+                coarse_completed=0,
+                refine_completed=0,
+            )
+
             coarse_ranked = []
+            coarse_completed = 0
             for candidate in parallel_coarse_generator(inputs=inputs, workers=workers):
                 if generation != continuous_state.generation:
                     return
@@ -825,8 +889,16 @@ def main() -> None:
                     cut_plan,
                 )
                 coarse_ranked.append(item)
+                coarse_completed += 1
                 with state.lock:
                     continuous_state.current = candidate
+                update_continuous_progress(
+                    phase="coarse",
+                    completed=coarse_completed,
+                    message="Grovsøker overgang",
+                    coarse_completed=coarse_completed,
+                    refine_completed=0,
+                )
             if not coarse_ranked:
                 raise ValueError("Ingen kandidater ble generert for kontinuerlig gulv.")
             coarse_ranked.sort(key=lambda item: item[0])
@@ -838,6 +910,14 @@ def main() -> None:
                 for _, candidate, _ in coarse_ranked[:top_n]
             ]
             best_item = coarse_ranked[0]
+            refine_completed = 0
+            update_continuous_progress(
+                phase="refine",
+                completed=coarse_total,
+                message="Finjusterer overgang",
+                coarse_completed=coarse_total,
+                refine_completed=0,
+            )
             for candidate in parallel_refine_generator(
                 inputs=refine_inputs,
                 workers=min(workers, max(1, len(refine_inputs))),
@@ -857,8 +937,25 @@ def main() -> None:
                 )
                 if item[0] < best_item[0]:
                     best_item = item
+                refine_completed += 1
                 with state.lock:
                     continuous_state.current = candidate
+                update_continuous_progress(
+                    phase="refine",
+                    completed=coarse_total + refine_completed,
+                    message="Finjusterer overgang",
+                    coarse_completed=coarse_total,
+                    refine_completed=refine_completed,
+                )
+
+            update_continuous_progress(
+                phase="cut",
+                completed=coarse_total + refine_total,
+                message="Velger ekspansjonsfuge",
+                coarse_completed=coarse_total,
+                refine_completed=refine_total,
+            )
+
             with state.lock:
                 continuous_state.best = best_item[1]
                 continuous_state.current = best_item[1]
@@ -873,11 +970,29 @@ def main() -> None:
                 )
                 continuous_state.running = False
                 continuous_state.finished = True
+                continuous_state.profile.update(
+                    {
+                        "phase": "finished",
+                        "completed": total,
+                        "total": total,
+                        "percent": 100.0,
+                        "elapsed_s": time.perf_counter() - started_at,
+                        "eta_s": 0.0,
+                        "message": "Ferdig",
+                    }
+                )
         except Exception as exc:
             with state.lock:
                 continuous_state.error = str(exc)
                 continuous_state.running = False
                 continuous_state.finished = True
+                continuous_state.profile.update(
+                    {
+                        "phase": "error",
+                        "eta_s": None,
+                        "message": str(exc),
+                    }
+                )
 
     def start_continuous(connection, config: dict[str, Any]) -> None:
         continuous_state = state.continuous[connection.connection_id]
@@ -890,6 +1005,21 @@ def main() -> None:
         continuous_state.best = None
         continuous_state.cut_plan = None
         continuous_state.room_pieces = {}
+        continuous_state.profile = {
+            "phase": "starting",
+            "completed": 0,
+            "total": 0,
+            "percent": 0.0,
+            "elapsed_s": 0.0,
+            "eta_s": None,
+            "candidates_per_second": 0.0,
+            "workers": 0,
+            "coarse_total": 0,
+            "coarse_completed": 0,
+            "refine_total": 0,
+            "refine_completed": 0,
+            "message": "Starter overgangsberegning",
+        }
         threading.Thread(
             target=continuous_worker,
             args=(connection, generation, copy.deepcopy(config)),
@@ -996,6 +1126,9 @@ def main() -> None:
                                 "candidate": state.candidate_payload(
                                     state.continuous[connection.connection_id].current
                                     or state.continuous[connection.connection_id].best
+                                ),
+                                "profile": copy.deepcopy(
+                                    state.continuous[connection.connection_id].profile
                                 ),
                                 "room_pieces": {
                                     room_id: [
