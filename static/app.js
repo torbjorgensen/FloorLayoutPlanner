@@ -849,6 +849,7 @@ function drawFloorPieces(x, y, scale) {
                 y,
                 scale,
                 roomId,
+                `connection:${connection.id}`,
             );
 
             renderedByContinuous.add(roomId);
@@ -875,6 +876,7 @@ function drawFloorPieces(x, y, scale) {
             y,
             scale,
             room.id,
+            `room:${room.id}`,
         );
     }
 }
@@ -1089,10 +1091,14 @@ function draw() {
 }
 
 
-function pieceKey(piece, roomId = "") {
+function pieceKey(
+    piece,
+    roomId = "",
+    boardScope = "",
+) {
     return [
         roomId,
-        boardIdentity(piece),
+        scopedBoardIdentity(piece, boardScope),
         piece.row,
         piece.segment,
         piece.piece,
@@ -1112,15 +1118,24 @@ function drawPieces(
     y,
     scale,
     roomId = "",
+    boardScope = `room:${roomId}`,
 ) {
     for (const piece of pieces || []) {
         const isShort =
             minimumPieceLength > 0
             && piece.length < minimumPieceLength;
-        const key = pieceKey(piece, roomId);
+        const key = pieceKey(
+            piece,
+            roomId,
+            boardScope,
+        );
+        const scopedIdentity = scopedBoardIdentity(
+            piece,
+            boardScope,
+        );
         const sameSource =
             hoveredPhysicalBoardId !== null
-            && boardIdentity(piece)
+            && scopedIdentity
                 === hoveredPhysicalBoardId;
         const isHovered = key === hoveredPieceKey;
 
@@ -1176,6 +1191,7 @@ function drawPieces(
         renderedPieceHitboxes.push({
             key,
             roomId,
+            boardScope,
             piece,
             x1: screenX,
             y1: screenY,
@@ -1223,19 +1239,34 @@ function boardIdentity(piece) {
 }
 
 
-function physicalBoardFragments(physicalBoardId) {
+function scopedBoardIdentity(
+    piece,
+    boardScope,
+) {
+    return `${boardScope}:${boardIdentity(piece)}`;
+}
+
+
+function physicalBoardFragments(scopedPhysicalBoardId) {
     return renderedPieceHitboxes.filter(
         item =>
-            boardIdentity(item.piece)
-            === physicalBoardId,
+            scopedBoardIdentity(
+                item.piece,
+                item.boardScope,
+            ) === scopedPhysicalBoardId,
     );
 }
 
 
 function hoverInfoHtml(hitbox) {
     const piece = hitbox.piece;
+    const scopedIdentity =
+        scopedBoardIdentity(
+            piece,
+            hitbox.boardScope,
+        );
     const fragments = physicalBoardFragments(
-        boardIdentity(piece),
+        scopedIdentity,
     );
     const roomIds = [
         ...new Set(
@@ -1254,7 +1285,7 @@ function hoverInfoHtml(hitbox) {
         || fragments.length > 1;
 
     return `
-        <strong>Fysisk bord ${boardIdentity(piece)}</strong><br>
+        <strong>Fysisk bord ${scopedIdentity}</strong><br>
         Rom: ${hitbox.roomId || "–"}<br>
         Rad ${piece.row}, segment ${piece.segment}, bit ${piece.piece}<br>
         Lengde: ${formatNumber(piece.length, 0)} mm<br>

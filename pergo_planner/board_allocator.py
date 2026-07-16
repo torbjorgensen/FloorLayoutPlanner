@@ -7,63 +7,67 @@ from .planner import Piece
 
 _LENGTH_TOLERANCE_MM = 1.0
 _WIDTH_TOLERANCE_MM = 1.0
+_LANE_TOLERANCE_MM = 1.0
+_DEFAULT_SAW_KERF_MM = 3.2
 
 
 def _piece_sort_key(
     piece: Piece,
     orientation: str,
-) -> tuple[float, float, int, int]:
+) -> tuple[float, float, int]:
     if orientation == "horizontal":
-        return (
-            piece.x1,
-            piece.y1,
-            piece.segment,
-            piece.piece,
-        )
+        return piece.x1, piece.y1, piece.piece
 
-    return (
-        piece.y1,
-        piece.x1,
-        piece.segment,
-        piece.piece,
-    )
+    return piece.y1, piece.x1, piece.piece
 
 
-def _row_groups(
+def _group_start(
     pieces: list[Piece],
     orientation: str,
-) -> list[tuple[int, list[Piece]]]:
-    rows: dict[int, list[Piece]] = {}
+) -> float:
+    if orientation == "horizontal":
+        return min(piece.x1 for piece in pieces)
 
-    for piece in pieces:
-        rows.setdefault(piece.row, []).append(piece)
+    return min(piece.y1 for piece in pieces)
 
-    return [
-        (
-            row_number,
-            sorted(
-                row_pieces,
-                key=lambda piece: _piece_sort_key(
-                    piece,
-                    orientation,
-                ),
-            ),
+
+def _same_laying_lane(
+    previous_group: list[Piece],
+    current_group: list[Piece],
+    orientation: str,
+) -> bool:
+    """
+    Match only rows that start at the same physical wall/edge.
+
+    The full row lengths are allowed to differ. That is normal in an L-shaped
+    room and must not prevent an end offcut from starting the next row.
+
+    A shifted start position means a different lane behind a wall, indentation
+    or other geometry break, so the offcut must not be linked automatically.
+    """
+    return (
+        abs(
+            _group_start(previous_group, orientation)
+            - _group_start(current_group, orientation)
         )
-        for row_number, row_pieces in sorted(rows.items())
-    ]
+        <= _LANE_TOLERANCE_MM
+    )
 
 
 def _can_reuse_offcut(
     previous_end: Piece,
     current_start: Piece,
     board_length: float,
+    saw_kerf_mm: float,
 ) -> bool:
     """
-    Check whether the end cut from one row is exactly the starter for the next.
+    Check whether one transverse cut created exactly these two fragments.
 
-    One transverse cut produces exactly two usable lengths. Therefore the two
-    fragments must together equal one full board; a shorter starter would
-    require a second transverse cut and is intentionally rejected.
+    The saw blade consumes ``saw_kerf_mm``. Therefore:
+
+        installed end piece + next-row starter + saw kerf = full board
+
+    A different sum would require another transverse cut and is rejected.
     """
     if previous_end.is_full_length or current_start.is_full_length:
         return False
@@ -72,9 +76,36 @@ def _can_reuse_offcut(
         return False
 
     return (
-        abs(previous_end.length + current_start.length - board_length)
+        abs(previous_end.length + current_start.length + saw_kerf_mm - board_length)
         <= _LENGTH_TOLERANCE_MM
     )
+
+
+def _segment_groups(
+    pieces: list[Piece],
+    orientation: str,
+) -> dict[int, dict[int, list[tuple[int, Piece]]]]:
+    rows: dict[int, dict[int, list[tuple[int, Piece]]]] = {}
+
+    for index, piece in enumerate(pieces):
+        rows.setdefault(
+            piece.row,
+            {},
+        ).setdefault(
+            piece.segment,
+            [],
+        ).append((index, piece))
+
+    for row_segments in rows.values():
+        for indexed_group in row_segments.values():
+            indexed_group.sort(
+                key=lambda item: _piece_sort_key(
+                    item[1],
+                    orientation,
+                )
+            )
+
+    return rows
 
 
 def assign_physical_boards(
@@ -83,22 +114,22 @@ def assign_physical_boards(
     board_length: float,
     orientation: str,
     id_prefix: str = "B",
+    saw_kerf_mm: float = _DEFAULT_SAW_KERF_MM,
 ) -> list[Piece]:
     """
-    Assign realistic physical-board IDs in laying order.
+    Assign physical-board IDs in realistic laying order.
 
-    Rules implemented in this first allocator:
+    Rules:
 
-    * every full/middle piece consumes one physical board;
-    * the cut at the end of a row may start the next row;
-    * reuse is allowed only when the two lengths are complementary and have
-      the same width;
-    * one physical board therefore has one or two visible fragments;
-    * no free cross-room/global best-fit reuse is performed.
+    * each ``(row, segment)`` is an independent laying sequence;
+    * the final cut in one row may start the next consecutive row;
+    * the next row must start at the same physical wall/edge;
+    * the two fragment lengths plus saw kerf must equal one full board;
+    * one previous offcut can be consumed only once;
+    * no free reuse across rooms or unrelated wall segments is performed.
 
-    For a continuous-then-cut layout this function is run before the expansion
-    strip is removed. When the strip later divides a piece, both resulting
-    fragments preserve the same physical-board ID.
+    IDs are local to the allocation call. The UI scopes ordinary IDs by room
+    and continuous-layout IDs by connection.
     """
     if orientation not in {"horizontal", "vertical"}:
         raise ValueError("orientation må være 'horizontal' eller 'vertical'.")
@@ -106,49 +137,97 @@ def assign_physical_boards(
     if board_length <= 0:
         raise ValueError("board_length må være større enn 0.")
 
+    if saw_kerf_mm < 0:
+        raise ValueError("saw_kerf_mm kan ikke være negativ.")
+
+    if saw_kerf_mm >= board_length:
+        raise ValueError("saw_kerf_mm må være mindre enn board_length.")
+
     if not pieces:
         return []
 
     board_numbers = count(1)
     board_ids: dict[int, str] = {}
-    previous_row_end_index: int | None = None
+    rows = _segment_groups(
+        pieces,
+        orientation,
+    )
 
-    indexed_pieces = list(enumerate(pieces))
+    previous_row_number: int | None = None
+    previous_groups: dict[
+        int,
+        list[tuple[int, Piece]],
+    ] = {}
 
-    rows: dict[int, list[tuple[int, Piece]]] = {}
-    for index, piece in indexed_pieces:
-        rows.setdefault(piece.row, []).append((index, piece))
+    for row_number in sorted(rows):
+        current_groups = rows[row_number]
+        used_previous_segments: set[int] = set()
 
-    for _, indexed_row in sorted(rows.items()):
-        indexed_row.sort(
-            key=lambda item: _piece_sort_key(
-                item[1],
-                orientation,
-            )
-        )
+        for segment_number in sorted(current_groups):
+            indexed_group = current_groups[segment_number]
+            start_index, start_piece = indexed_group[0]
 
-        current_start_index, current_start = indexed_row[0]
-
-        if previous_row_end_index is not None:
-            previous_end = pieces[previous_row_end_index]
-
-            if _can_reuse_offcut(
-                previous_end,
-                current_start,
-                board_length,
+            if (
+                previous_row_number is not None
+                and row_number == previous_row_number + 1
             ):
-                board_ids[current_start_index] = board_ids[previous_row_end_index]
+                matching_segments: list[tuple[int, int]] = []
 
-        for index, _piece in indexed_row:
-            if index not in board_ids:
-                board_ids[index] = f"{id_prefix}{next(board_numbers):05d}"
+                for (
+                    previous_segment,
+                    previous_indexed_group,
+                ) in previous_groups.items():
+                    if previous_segment in used_previous_segments:
+                        continue
 
-        previous_row_end_index = indexed_row[-1][0]
+                    previous_pieces = [piece for _, piece in previous_indexed_group]
+                    current_pieces = [piece for _, piece in indexed_group]
+
+                    if not _same_laying_lane(
+                        previous_pieces,
+                        current_pieces,
+                        orientation,
+                    ):
+                        continue
+
+                    (
+                        previous_end_index,
+                        previous_end,
+                    ) = previous_indexed_group[-1]
+
+                    if _can_reuse_offcut(
+                        previous_end,
+                        start_piece,
+                        board_length,
+                        saw_kerf_mm,
+                    ):
+                        matching_segments.append(
+                            (
+                                previous_segment,
+                                previous_end_index,
+                            )
+                        )
+
+                # Reuse only when the continuation is unambiguous.
+                if len(matching_segments) == 1:
+                    (
+                        previous_segment,
+                        previous_end_index,
+                    ) = matching_segments[0]
+                    board_ids[start_index] = board_ids[previous_end_index]
+                    used_previous_segments.add(previous_segment)
+
+            for index, _piece in indexed_group:
+                if index not in board_ids:
+                    board_ids[index] = f"{id_prefix}{next(board_numbers):05d}"
+
+        previous_row_number = row_number
+        previous_groups = current_groups
 
     return [
         replace(
             piece,
             physical_board_id=board_ids[index],
         )
-        for index, piece in indexed_pieces
+        for index, piece in enumerate(pieces)
     ]
