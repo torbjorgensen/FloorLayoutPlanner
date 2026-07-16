@@ -55,6 +55,23 @@ class Opening:
 
 
 @dataclass(frozen=True)
+class Passage:
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+@dataclass(frozen=True)
+class CutSettings:
+    axis: str
+    gap_width_mm: float = 5.0
+    edge_clearance_mm: float = 15.0
+    prefer_existing_joint: bool = True
+    search_step_mm: float = 5.0
+
+
+@dataclass(frozen=True)
 class RoomConnection:
     connection_id: str
     room_a: str
@@ -69,16 +86,18 @@ class RoomConnection:
 
 
 @dataclass(frozen=True)
-class Passage:
-    x: float
-    y: float
-    width: float
-    height: float
-
-
-@dataclass(frozen=True)
-class CutSettings:
+class CutPlan:
+    connection_id: str
     axis: str
-    gap_width_mm: float = 5.0
-    edge_clearance_mm: float = 15.0
-    prefer_existing_joint: bool = True
+    position_mm: float
+    gap_width_mm: float
+    method: str
+    cut_boards: int
+    short_fragments: int
+    very_short_fragments: int
+    narrow_fragments: int
+    very_narrow_fragments: int
+    shortest_fragment_mm: float
+    narrowest_fragment_mm: float
+    center_distance_mm: float
+    score: tuple

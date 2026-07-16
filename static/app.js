@@ -285,88 +285,67 @@ function draw() {
         (width - 2 * margin) / projectWidth,
         (height - 2 * margin) / projectHeight,
     );
-
     const x = value => margin + (value - bounds.min_x) * scale;
     const y = value => margin + (value - bounds.min_y) * scale;
 
+    const continuousRooms = new Set();
     for (const connection of latestState.connections || []) {
-        const passage = connection.passage;
-
-        if (!passage) {
-            continue;
+        if (connection.type === "continuous_then_cut" && connection.continuous?.candidate) {
+            continuousRooms.add(connection.room_a);
+            continuousRooms.add(connection.room_b);
         }
-
-        context.save();
-
-        context.fillStyle =
-            connection.type === "continuous_then_cut"
-                ? "rgba(210, 235, 210, 0.85)"
-                : "rgba(180, 180, 180, 0.55)";
-
-        context.fillRect(
-            x(passage.x),
-            y(passage.y),
-            passage.width * scale,
-            passage.height * scale,
-        );
-
-        for (const piece of connection.passage_pieces || []) {
-            context.fillStyle = "#dff2df";
-            context.strokeStyle = "#667a66";
-            context.lineWidth = 0.8;
-
-            context.fillRect(
-                x(piece.x1),
-                y(piece.y1),
-                (piece.x2 - piece.x1) * scale,
-                (piece.y2 - piece.y1) * scale,
-            );
-
-            context.strokeRect(
-                x(piece.x1),
-                y(piece.y1),
-                (piece.x2 - piece.x1) * scale,
-                (piece.y2 - piece.y1) * scale,
-            );
-        }
-
-        context.restore();
     }
 
     for (const room of latestState.rooms) {
         const selected = room.id === selectedRoomId;
-
         for (const rectangle of room.rectangles) {
             context.fillStyle = colorWithAlpha(
                 rectangle.fill_color || (selected ? "#dbeafe" : "#eeeeee"),
                 rectangle.fill_alpha ?? (selected ? 0.22 : 0.10),
             );
-            context.fillRect(
-                x(rectangle.x), y(rectangle.y),
-                rectangle.width * scale, rectangle.height * scale,
-            );
+            context.fillRect(x(rectangle.x), y(rectangle.y), rectangle.width * scale, rectangle.height * scale);
         }
-
         const candidate = room.current || room.best;
-        if (candidate) {
-            for (const piece of candidate.pieces) {
-                const isShort = piece.length < room.minimum_piece_length;
-                context.fillStyle = isShort ? "#ffd6d6" : (selected ? "#dff2df" : "#edf3ed");
-                context.strokeStyle = isShort ? "#b00020" : "#667a66";
-                context.lineWidth = isShort ? 2 : 0.8;
+        if (candidate && !continuousRooms.has(room.id)) {
+            drawPieces(candidate.pieces, room.minimum_piece_length, selected, x, y, scale);
+        }
+    }
+
+    for (const connection of latestState.connections || []) {
+        if (connection.type !== "continuous_then_cut" || !connection.continuous?.candidate) continue;
+        drawPieces(connection.continuous.candidate.pieces, 0, true, x, y, scale);
+        const cut = connection.continuous.cut_plan;
+        const passage = connection.passage;
+        if (cut && passage) {
+            context.save();
+            context.fillStyle = cut.method === "natural_joint" ? "#1b8f3a" : "#202020";
+            if (cut.axis === "y") {
                 context.fillRect(
-                    x(piece.x1), y(piece.y1),
-                    (piece.x2 - piece.x1) * scale,
-                    (piece.y2 - piece.y1) * scale,
+                    x(passage.x),
+                    y(cut.position_mm - cut.gap_width_mm / 2),
+                    passage.width * scale,
+                    Math.max(2, cut.gap_width_mm * scale),
                 );
-                context.strokeRect(
-                    x(piece.x1), y(piece.y1),
-                    (piece.x2 - piece.x1) * scale,
-                    (piece.y2 - piece.y1) * scale,
+            } else {
+                context.fillRect(
+                    x(cut.position_mm - cut.gap_width_mm / 2),
+                    y(passage.y),
+                    Math.max(2, cut.gap_width_mm * scale),
+                    passage.height * scale,
                 );
             }
+            context.fillStyle = "#111";
+            context.font = "600 12px sans-serif";
+            const label = cut.method === "natural_joint"
+                ? "Naturlig skjøt"
+                : `Sagspor – ${cut.cut_boards} bord`;
+            context.fillText(label, x(passage.x) + 6, y(passage.y) - 7);
+            context.restore();
         }
+    }
 
+    for (const room of latestState.rooms) {
+        const selected = room.id === selectedRoomId;
         context.beginPath();
         room.outline.forEach((point, index) => {
             if (index === 0) context.moveTo(x(point[0]), y(point[1]));
@@ -375,120 +354,29 @@ function draw() {
         context.strokeStyle = selected ? "#1a73e8" : "#111";
         context.lineWidth = selected ? 4 : 2;
         context.stroke();
-
         context.fillStyle = "#111";
         context.font = "600 14px sans-serif";
-        context.fillText(
-            room.name,
-            x(room.bounds.min_x) + 8,
-            y(room.bounds.min_y) + 20,
+        context.fillText(room.name, x(room.bounds.min_x) + 8, y(room.bounds.min_y) + 20);
+    }
+}
+
+function drawPieces(pieces, minimumPieceLength, selected, x, y, scale) {
+    for (const piece of pieces || []) {
+        const isShort = minimumPieceLength > 0 && piece.length < minimumPieceLength;
+        context.fillStyle = isShort ? "#ffd6d6" : (selected ? "#dff2df" : "#edf3ed");
+        context.strokeStyle = isShort ? "#b00020" : "#667a66";
+        context.lineWidth = isShort ? 2 : 0.8;
+        context.fillRect(
+            x(piece.x1), y(piece.y1),
+            (piece.x2 - piece.x1) * scale,
+            (piece.y2 - piece.y1) * scale,
+        );
+        context.strokeRect(
+            x(piece.x1), y(piece.y1),
+            (piece.x2 - piece.x1) * scale,
+            (piece.y2 - piece.y1) * scale,
         );
     }
-    for (const connection of latestState.connections || []) {
-        const opening = connection.opening;
-
-        context.save();
-
-        context.beginPath();
-        context.moveTo(x(opening.x1), y(opening.y1));
-        context.lineTo(x(opening.x2), y(opening.y2));
-
-        const analysis = connection.analysis || {};
-        const alignment = analysis.row_alignment_percent;
-
-        if (alignment === null || alignment === undefined) {
-            context.strokeStyle = "#777777";
-        } else if (alignment >= 90) {
-            context.strokeStyle = "#1b8f3a";
-        } else if (alignment >= 60) {
-            context.strokeStyle = "#e28a00";
-        } else {
-            context.strokeStyle = "#c62828";
-        }
-
-        context.lineWidth =
-            connection.type === "open_passage" ? 7 : 4;
-
-        context.setLineDash(
-            connection.type === "open_passage"
-                ? []
-                : [10, 6]
-        );
-
-        context.stroke();
-
-        const middleX = (opening.x1 + opening.x2) / 2;
-        const middleY = (opening.y1 + opening.y2) / 2;
-
-        context.setLineDash([]);
-        context.fillStyle = "#005f99";
-        context.font = "600 12px sans-serif";
-
-        let connectionText = connection.type === "open_passage"
-            ? "Åpen passasje"
-            : "Overgang";
-
-        if (
-            analysis.row_mismatch_mm !== null
-            && analysis.row_mismatch_mm !== undefined
-        ) {
-            connectionText +=
-                ` – avvik ${analysis.row_mismatch_mm.toFixed(0)} mm`;
-        }
-
-        context.fillText(
-            connectionText,
-            x(middleX) + 6,
-            y(middleY) - 6,
-        );
-        context.restore();
-    }
-
-    for (const connection of latestState.connections || []) {
-        if (
-            connection.type !== "continuous_then_cut"
-            || !connection.passage
-            || !connection.cut
-        ) {
-            continue;
-        }
-
-        const passage = connection.passage;
-        const cut = connection.cut;
-
-        context.save();
-        context.fillStyle = "#202020";
-
-        if (cut.axis === "y") {
-            const cutY =
-                passage.y
-                + passage.height / 2
-                - cut.gap_width_mm / 2;
-
-            context.fillRect(
-                x(passage.x),
-                y(cutY),
-                passage.width * scale,
-                Math.max(2, cut.gap_width_mm * scale),
-            );
-        } else {
-            const cutX =
-                passage.x
-                + passage.width / 2
-                - cut.gap_width_mm / 2;
-
-            context.fillRect(
-                x(cutX),
-                y(passage.y),
-                Math.max(2, cut.gap_width_mm * scale),
-                passage.height * scale,
-            );
-        }
-
-        context.restore();
-    }
-
-
 }
 
 async function refreshState() {

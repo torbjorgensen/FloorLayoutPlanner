@@ -13,7 +13,7 @@
     "row_width_optimization_step_mm": 25,
     "minimum_row_width_mm": 60,
     "preferred_minimum_row_width_mm": 100,
-    "optimizer_workers": 8,
+    "optimizer_workers": 38,
     "preview_every_n_results": 10,
     "local_optimize_top_n": 12,
     "frame_delay_ms": 20,
