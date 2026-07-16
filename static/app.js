@@ -1352,14 +1352,18 @@ canvas.addEventListener("mousemove", event => {
         return;
     }
 
+    const scopedIdentity = scopedBoardIdentity(
+        hitbox.piece,
+        hitbox.boardScope,
+    );
     const changed =
         hoveredPieceKey !== hitbox.key
         || hoveredPhysicalBoardId
-            !== boardIdentity(hitbox.piece);
+            !== scopedIdentity;
 
     hoveredPieceKey = hitbox.key;
     hoveredPhysicalBoardId =
-        boardIdentity(hitbox.piece);
+        scopedIdentity;
 
     tooltip.innerHTML = hoverInfoHtml(hitbox);
     tooltip.style.display = "block";
