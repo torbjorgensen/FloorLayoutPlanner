@@ -13,6 +13,7 @@ from typing import Any
 
 from flask import Flask, jsonify, render_template, request
 
+from pergo_planner.connections import connection_payload, parse_connections
 from pergo_planner.geometry import build_floor_polygon
 from pergo_planner.optimizer import (
     Candidate,
@@ -77,6 +78,7 @@ class ProjectState:
         self.rooms: dict[str, RoomState] = {
             room["id"]: RoomState(room["id"]) for room in config["rooms"]
         }
+        self.connections = parse_connections(config)
 
     @staticmethod
     def piece_payload(piece: Any) -> dict[str, Any]:
@@ -164,6 +166,8 @@ def load_config(path: Path) -> dict[str, Any]:
         seen_ids.add(room["id"])
         if not room["rectangles"]:
             raise ValueError(f"Rommet '{room['name']}' mangler rektangler.")
+
+    parse_connections(config)
 
     return config
 
@@ -818,6 +822,9 @@ def main() -> None:
                 "rooms": rooms_payload,
                 "bounds": project_bounds,
                 "output_dir": str(output_dir),
+                "connections": [
+                    connection_payload(connection) for connection in state.connections
+                ],
             }
         )
 
