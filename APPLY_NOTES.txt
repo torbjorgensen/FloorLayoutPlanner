@@ -1,0 +1,21 @@
+FloorLayoutPlanner continuous_then_cut upgrade
+
+This ZIP is an overlay for feature/room-connections.
+Copy/extract it into the repository root and allow files to be replaced.
+
+Implemented:
+- Builds room_a + passage + room_b as one connected polygon.
+- Searches the normal board-layout candidates over the complete polygon.
+- Evaluates allowed expansion-joint positions inside the passage.
+- Penalizes short/narrow fragments created by the cut.
+- Prefers a natural existing joint when it is physically possible.
+- Displays the complete continuous layout and selected joint/cut in the web UI.
+
+Run after extraction:
+  python -m pytest -v
+  pre-commit run --all-files
+
+Suggested commit:
+  git add .
+  git commit -m "Optimize continuous room layouts and expansion cuts"
+  git push

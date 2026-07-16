@@ -13,9 +13,16 @@ from typing import Any
 
 from flask import Flask, jsonify, render_template, request
 
+from pergo_planner.connections import connection_payload, parse_connections
+from pergo_planner.continuous_solver import (
+    best_cut_plan,
+    build_continuous_floor,
+    continuous_candidate_score,
+    cut_plan_payload,
+)
 from pergo_planner.geometry import build_floor_polygon
+from pergo_planner.models import Candidate
 from pergo_planner.optimizer import (
-    Candidate,
     build_candidate_inputs,
     parallel_coarse_generator,
     parallel_refine_generator,
@@ -69,11 +76,29 @@ class RoomState:
         }
 
 
+class ContinuousState:
+    def __init__(self, connection_id: str) -> None:
+        self.connection_id = connection_id
+        self.running = False
+        self.finished = False
+        self.error: str | None = None
+        self.current: Candidate | None = None
+        self.best: Candidate | None = None
+        self.cut_plan = None
+        self.generation = 0
+
+
 class ProjectState:
     def __init__(self, config: dict[str, Any]) -> None:
         self.lock = threading.RLock()
         self.file_config = copy.deepcopy(config)
         self.active_config = copy.deepcopy(config)
+        self.connections = parse_connections(config)
+        self.continuous: dict[str, ContinuousState] = {
+            connection.connection_id: ContinuousState(connection.connection_id)
+            for connection in self.connections
+            if connection.connection_type == "continuous_then_cut"
+        }
         self.rooms: dict[str, RoomState] = {
             room["id"]: RoomState(room["id"]) for room in config["rooms"]
         }
@@ -738,6 +763,128 @@ def main() -> None:
                     room_state.finished = True
                     room_state.profile["phase"] = "error"
 
+    def continuous_worker(
+        connection,
+        generation: int,
+        config_snapshot: dict[str, Any],
+    ) -> None:
+        continuous_state = state.continuous[connection.connection_id]
+        try:
+            room_a = room_by_id(config_snapshot, connection.room_a)
+            room_b = room_by_id(config_snapshot, connection.room_b)
+            settings_a = merged_settings(config_snapshot, room_a)
+            settings_b = merged_settings(config_snapshot, room_b)
+            if settings_a["orientation"] != settings_b["orientation"]:
+                raise ValueError(
+                    "continuous_then_cut krever samme leggeretning i begge rom."
+                )
+            orientation = settings_a["orientation"]
+            board = config_snapshot["board"]
+            floor = build_continuous_floor(
+                room_a,
+                room_b,
+                connection,
+                float(settings_a["expansion_gap_mm"]),
+            )
+            inputs = build_candidate_inputs(
+                floor=floor,
+                board_length=float(board["length_mm"]),
+                board_width=float(board["width_mm"]),
+                orientation=orientation,
+                stagger_step=float(settings_a["stagger_step_mm"]),
+                minimum_piece_length=float(settings_a["minimum_piece_length_mm"]),
+                minimum_joint_distance=float(settings_a["minimum_joint_distance_mm"]),
+                minimum_row_width=float(settings_a["minimum_row_width_mm"]),
+                preferred_minimum_row_width=float(
+                    settings_a["preferred_minimum_row_width_mm"]
+                ),
+                optimization_step=float(settings_a["optimization_step_mm"]),
+                row_width_optimization_step=float(
+                    settings_a["row_width_optimization_step_mm"]
+                ),
+            )
+            workers = int(settings_a["optimizer_workers"])
+            top_n = min(int(settings_a["local_optimize_top_n"]), len(inputs))
+            coarse_ranked = []
+            for candidate in parallel_coarse_generator(inputs=inputs, workers=workers):
+                if generation != continuous_state.generation:
+                    return
+                cut_plan = best_cut_plan(
+                    candidate,
+                    connection,
+                    orientation,
+                    float(settings_a["minimum_piece_length_mm"]),
+                    float(settings_a["minimum_row_width_mm"]),
+                    float(settings_a["preferred_minimum_row_width_mm"]),
+                )
+                item = (
+                    continuous_candidate_score(candidate, cut_plan),
+                    candidate,
+                    cut_plan,
+                )
+                coarse_ranked.append(item)
+                with state.lock:
+                    continuous_state.current = candidate
+            if not coarse_ranked:
+                raise ValueError("Ingen kandidater ble generert for kontinuerlig gulv.")
+            coarse_ranked.sort(key=lambda item: item[0])
+            input_lookup = {
+                (item.base_offset, item.row_width_offset): item for item in inputs
+            }
+            refine_inputs = [
+                input_lookup[(candidate.base_offset, candidate.row_width_offset)]
+                for _, candidate, _ in coarse_ranked[:top_n]
+            ]
+            best_item = coarse_ranked[0]
+            for candidate in parallel_refine_generator(
+                inputs=refine_inputs,
+                workers=min(workers, max(1, len(refine_inputs))),
+            ):
+                cut_plan = best_cut_plan(
+                    candidate,
+                    connection,
+                    orientation,
+                    float(settings_a["minimum_piece_length_mm"]),
+                    float(settings_a["minimum_row_width_mm"]),
+                    float(settings_a["preferred_minimum_row_width_mm"]),
+                )
+                item = (
+                    continuous_candidate_score(candidate, cut_plan),
+                    candidate,
+                    cut_plan,
+                )
+                if item[0] < best_item[0]:
+                    best_item = item
+                with state.lock:
+                    continuous_state.current = candidate
+            with state.lock:
+                continuous_state.best = best_item[1]
+                continuous_state.current = best_item[1]
+                continuous_state.cut_plan = best_item[2]
+                continuous_state.running = False
+                continuous_state.finished = True
+        except Exception as exc:
+            with state.lock:
+                continuous_state.error = str(exc)
+                continuous_state.running = False
+                continuous_state.finished = True
+
+    def start_continuous(connection, config: dict[str, Any]) -> None:
+        continuous_state = state.continuous[connection.connection_id]
+        continuous_state.generation += 1
+        generation = continuous_state.generation
+        continuous_state.running = True
+        continuous_state.finished = False
+        continuous_state.error = None
+        continuous_state.current = None
+        continuous_state.best = None
+        continuous_state.cut_plan = None
+        threading.Thread(
+            target=continuous_worker,
+            args=(connection, generation, copy.deepcopy(config)),
+            daemon=True,
+        ).start()
+
     def start_room(room_id: str, config: dict[str, Any]) -> None:
         room = room_by_id(config, room_id)
         local_floor(config, room)  # validate synchronously
@@ -781,6 +928,9 @@ def main() -> None:
     def start_all(config: dict[str, Any]) -> None:
         for room in config["rooms"]:
             start_room(room["id"], config)
+        for connection in state.connections:
+            if connection.connection_type == "continuous_then_cut":
+                start_continuous(connection, config)
 
     @app.get("/")
     def index():
@@ -818,6 +968,43 @@ def main() -> None:
                 "rooms": rooms_payload,
                 "bounds": project_bounds,
                 "output_dir": str(output_dir),
+                "connections": [
+                    {
+                        **connection_payload(connection),
+                        "continuous": (
+                            {
+                                "running": state.continuous[
+                                    connection.connection_id
+                                ].running,
+                                "finished": state.continuous[
+                                    connection.connection_id
+                                ].finished,
+                                "error": state.continuous[
+                                    connection.connection_id
+                                ].error,
+                                "candidate": state.candidate_payload(
+                                    state.continuous[connection.connection_id].current
+                                    or state.continuous[connection.connection_id].best
+                                ),
+                                "cut_plan": (
+                                    cut_plan_payload(
+                                        state.continuous[
+                                            connection.connection_id
+                                        ].cut_plan
+                                    )
+                                    if state.continuous[
+                                        connection.connection_id
+                                    ].cut_plan
+                                    is not None
+                                    else None
+                                ),
+                            }
+                            if connection.connection_type == "continuous_then_cut"
+                            else None
+                        ),
+                    }
+                    for connection in state.connections
+                ],
             }
         )
 

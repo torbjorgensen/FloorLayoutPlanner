@@ -126,5 +126,24 @@
         "orientation": "vertical"
       }
     }
-  ]
+  ],
+  "connections": [
+  {
+    "id": "stue_kjokken",
+    "room_a": "stue",
+    "room_b": "kjokken",
+    "type": "open_passage",
+    "opening": {
+      "x1": 3700,
+      "y1": 3250,
+      "x2": 4600,
+      "y2": 3250
+    },
+    "align": {
+      "rows": true,
+      "joints": false
+    },
+    "weight": 10
+  }
+]
 }

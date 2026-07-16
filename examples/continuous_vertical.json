@@ -1,0 +1,104 @@
+{
+  "project_name": "Continuous Vertical",
+  "board": {
+    "length_mm": 2050.0,
+    "width_mm": 240.0
+  },
+  "settings": {
+    "expansion_gap_mm": 5,
+    "minimum_piece_length_mm": 300,
+    "minimum_joint_distance_mm": 300,
+    "stagger_step_mm": 700,
+    "optimization_step_mm": 70,
+    "row_width_optimization_step_mm": 25,
+    "minimum_row_width_mm": 60,
+    "preferred_minimum_row_width_mm": 100,
+    "optimizer_workers": 8,
+    "preview_every_n_results": 10,
+    "local_optimize_top_n": 12,
+    "frame_delay_ms": 20,
+    "waste_percent": 10,
+    "boards_per_pack": 8
+  },
+  "rooms": [
+    {
+      "id": "living",
+      "name": "Living room",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "rectangles": [
+        {
+          "name": "Living room",
+          "x": 0,
+          "y": 0,
+          "width": 4000,
+          "height": 5000,
+          "outline_color": "#2e7d32",
+          "outline_alpha": 0.95,
+          "fill_color": "#a5d6a7",
+          "fill_alpha": 0.16
+        }
+      ],
+      "settings": {
+        "orientation": "vertical"
+      }
+    },
+    {
+      "id": "hall",
+      "name": "Hall",
+      "origin": {
+        "x": 4120,
+        "y": 0
+      },
+      "rectangles": [
+        {
+          "name": "Hall",
+          "x": 0,
+          "y": 0,
+          "width": 2500,
+          "height": 5000,
+          "outline_color": "#ef6c00",
+          "outline_alpha": 0.95,
+          "fill_color": "#ffcc80",
+          "fill_alpha": 0.16
+        }
+      ],
+      "settings": {
+        "orientation": "vertical"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "living_hall",
+      "room_a": "living",
+      "room_b": "hall",
+      "type": "continuous_then_cut",
+      "opening": {
+        "x1": 4000,
+        "y1": 1700,
+        "x2": 4000,
+        "y2": 2600
+      },
+      "passage": {
+        "x": 4000,
+        "y": 1700,
+        "width": 120,
+        "height": 900
+      },
+      "cut": {
+        "axis": "x",
+        "gap_width_mm": 5,
+        "edge_clearance_mm": 15,
+        "prefer_existing_joint": true
+      },
+      "align": {
+        "rows": true,
+        "joints": true
+      },
+      "weight": 10
+    }
+  ]
+}

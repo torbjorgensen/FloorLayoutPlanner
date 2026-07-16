@@ -1,0 +1,157 @@
+{
+  "project_name": "Continuous Double",
+  "board": {
+    "length_mm": 2050.0,
+    "width_mm": 240.0
+  },
+  "settings": {
+    "expansion_gap_mm": 5,
+    "minimum_piece_length_mm": 300,
+    "minimum_joint_distance_mm": 300,
+    "stagger_step_mm": 700,
+    "optimization_step_mm": 70,
+    "row_width_optimization_step_mm": 25,
+    "minimum_row_width_mm": 60,
+    "preferred_minimum_row_width_mm": 100,
+    "optimizer_workers": 38,
+    "preview_every_n_results": 10,
+    "local_optimize_top_n": 12,
+    "frame_delay_ms": 20,
+    "waste_percent": 10,
+    "boards_per_pack": 8
+  },
+  "rooms": [
+    {
+      "id": "living",
+      "name": "Living room",
+      "origin": {
+        "x": 0,
+        "y": 0
+      },
+      "rectangles": [
+        {
+          "name": "Living room",
+          "x": 0,
+          "y": 0,
+          "width": 5000,
+          "height": 3500,
+          "outline_color": "#1565c0",
+          "outline_alpha": 0.95,
+          "fill_color": "#90caf9",
+          "fill_alpha": 0.16
+        }
+      ],
+      "settings": {
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": "kitchen",
+      "name": "Kitchen",
+      "origin": {
+        "x": 0,
+        "y": 3620
+      },
+      "rectangles": [
+        {
+          "name": "Kitchen",
+          "x": 0,
+          "y": 0,
+          "width": 5000,
+          "height": 2800,
+          "outline_color": "#6a1b9a",
+          "outline_alpha": 0.95,
+          "fill_color": "#ce93d8",
+          "fill_alpha": 0.16
+        }
+      ],
+      "settings": {
+        "orientation": "horizontal"
+      }
+    },
+    {
+      "id": "hall",
+      "name": "Hall",
+      "origin": {
+        "x": 0,
+        "y": 6540
+      },
+      "rectangles": [
+        {
+          "name": "Hall",
+          "x": 0,
+          "y": 0,
+          "width": 5000,
+          "height": 2200,
+          "outline_color": "#ef6c00",
+          "outline_alpha": 0.95,
+          "fill_color": "#ffcc80",
+          "fill_alpha": 0.16
+        }
+      ],
+      "settings": {
+        "orientation": "horizontal"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "living_kitchen",
+      "room_a": "living",
+      "room_b": "kitchen",
+      "type": "continuous_then_cut",
+      "opening": {
+        "x1": 1800,
+        "y1": 3500,
+        "x2": 3200,
+        "y2": 3500
+      },
+      "passage": {
+        "x": 1800,
+        "y": 3500,
+        "width": 1400,
+        "height": 120
+      },
+      "cut": {
+        "axis": "y",
+        "gap_width_mm": 5,
+        "edge_clearance_mm": 15,
+        "prefer_existing_joint": true
+      },
+      "align": {
+        "rows": true,
+        "joints": true
+      },
+      "weight": 10
+    },
+    {
+      "id": "kitchen_hall",
+      "room_a": "kitchen",
+      "room_b": "hall",
+      "type": "continuous_then_cut",
+      "opening": {
+        "x1": 2050,
+        "y1": 6420,
+        "x2": 2950,
+        "y2": 6420
+      },
+      "passage": {
+        "x": 2050,
+        "y": 6420,
+        "width": 900,
+        "height": 120
+      },
+      "cut": {
+        "axis": "y",
+        "gap_width_mm": 5,
+        "edge_clearance_mm": 15,
+        "prefer_existing_joint": true
+      },
+      "align": {
+        "rows": true,
+        "joints": true
+      },
+      "weight": 8
+    }
+  ]
+}
