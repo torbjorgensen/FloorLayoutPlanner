@@ -55,7 +55,6 @@ jobs:
         run: |
           pre-commit run --all-files
 
-      # Aktiver denne når vi får på plass tester
-      #- name: Run tests
-      #  run: |
-      #    pytest
+      - name: Run tests
+        run: |
+          pytest -v
