@@ -168,22 +168,34 @@
     }
   ],
     "connections": [
-  {
-    "id": "stue_kjokken",
-    "room_a": "stue",
-    "room_b": "kjokken",
-    "type": "open_passage",
-    "opening": {
-      "x1": 4400,
-      "y1": 3250,
-      "x2": 5550,
-      "y2": 3250
-    },
-    "align": {
-      "rows": true,
-      "joints": false
-    },
-    "weight": 10
-  }
+      {
+        "id": "stue_kjokken",
+        "room_a": "stue",
+        "room_b": "kjokken",
+        "type": "continuous_then_cut",
+        "opening": {
+          "x1": 4400,
+          "y1": 3250,
+          "x2": 5550,
+          "y2": 3250
+        },
+        "passage": {
+          "x": 4400,
+          "y": 3250,
+          "width": 1150,
+          "height": 120
+        },
+        "cut": {
+          "axis": "y",
+          "gap_width_mm": 5,
+          "edge_clearance_mm": 15,
+          "prefer_existing_joint": true
+        },
+        "align": {
+          "rows": true,
+          "joints": true
+        },
+        "weight": 10
+      }
 ]
 }
