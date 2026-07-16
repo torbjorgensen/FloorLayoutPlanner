@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from pergo_planner.models import CandidateInput
 from pergo_planner.optimizer import (
-    CandidateInput,
     build_candidate_inputs,
     evaluate_candidate_fast,
 )

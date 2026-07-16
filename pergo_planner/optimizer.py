@@ -3,52 +3,14 @@ from __future__ import annotations
 import os
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from dataclasses import dataclass
 from typing import Iterable
 
 from shapely import wkb
 from shapely.geometry import Polygon
 
+from .models import Candidate, CandidateInput
 from .planner import Piece, create_plan
 from .scorer import evaluate_pieces
-
-
-@dataclass(frozen=True)
-class Candidate:
-    attempt: int
-    total_attempts: int
-    phase: str
-    base_offset: float
-    row_width_offset: float
-    pieces: list[Piece]
-    short_count: int
-    very_short_count: int
-    shortest_piece: float
-    joint_violations: int
-    narrow_row_count: int
-    very_narrow_row_count: int
-    narrowest_row_width: float
-    row_offsets: dict[int, float]
-    score: tuple
-    timings: dict[str, float]
-
-
-@dataclass(frozen=True)
-class CandidateInput:
-    attempt: int
-    total_attempts: int
-    floor_wkb: bytes
-    board_length: float
-    board_width: float
-    orientation: str
-    stagger_step: float
-    minimum_piece_length: float
-    minimum_joint_distance: float
-    minimum_row_width: float
-    preferred_minimum_row_width: float
-    optimization_step: float
-    base_offset: float
-    row_width_offset: float
 
 
 def _problem_rows(
