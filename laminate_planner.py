@@ -22,7 +22,6 @@ from pergo_planner.optimizer import (
 )
 from pergo_planner.renderer import plot_plan
 
-
 DEFAULT_SETTINGS = {
     "orientation": "horizontal",
     "expansion_gap_mm": 5.0,
@@ -76,8 +75,7 @@ class ProjectState:
         self.file_config = copy.deepcopy(config)
         self.active_config = copy.deepcopy(config)
         self.rooms: dict[str, RoomState] = {
-            room["id"]: RoomState(room["id"])
-            for room in config["rooms"]
+            room["id"]: RoomState(room["id"]) for room in config["rooms"]
         }
 
     @staticmethod
@@ -115,10 +113,7 @@ class ProjectState:
             "row_offsets": candidate.row_offsets,
             "phase": candidate.phase,
             "timings": candidate.timings,
-            "pieces": [
-                self.piece_payload(piece)
-                for piece in candidate.pieces
-            ],
+            "pieces": [self.piece_payload(piece) for piece in candidate.pieces],
         }
 
 
@@ -131,8 +126,7 @@ def load_config(path: Path) -> dict[str, Any]:
             config = json.load(file)
     except json.JSONDecodeError as exc:
         raise ValueError(
-            f"Ugyldig JSON i {path}: linje {exc.lineno}, "
-            f"kolonne {exc.colno}: {exc.msg}"
+            f"Ugyldig JSON i {path}: linje {exc.lineno}, kolonne {exc.colno}: {exc.msg}"
         ) from exc
 
     # Backward compatibility: old one-room format.
@@ -187,9 +181,7 @@ def merged_settings(
         settings["stagger_step_mm"] = board_length / 3
 
     if settings.get("minimum_joint_distance_mm") in (None, ""):
-        settings["minimum_joint_distance_mm"] = settings[
-            "minimum_piece_length_mm"
-        ]
+        settings["minimum_joint_distance_mm"] = settings["minimum_piece_length_mm"]
 
     return settings
 
@@ -204,32 +196,20 @@ def editable_room_settings(
     return {
         "orientation": settings["orientation"],
         "expansion_gap_mm": float(settings["expansion_gap_mm"]),
-        "minimum_piece_length_mm": float(
-            settings["minimum_piece_length_mm"]
-        ),
-        "minimum_joint_distance_mm": float(
-            settings["minimum_joint_distance_mm"]
-        ),
+        "minimum_piece_length_mm": float(settings["minimum_piece_length_mm"]),
+        "minimum_joint_distance_mm": float(settings["minimum_joint_distance_mm"]),
         "stagger_step_mm": float(settings["stagger_step_mm"]),
-        "optimization_step_mm": float(
-            settings["optimization_step_mm"]
-        ),
+        "optimization_step_mm": float(settings["optimization_step_mm"]),
         "row_width_optimization_step_mm": float(
             settings["row_width_optimization_step_mm"]
         ),
-        "minimum_row_width_mm": float(
-            settings["minimum_row_width_mm"]
-        ),
+        "minimum_row_width_mm": float(settings["minimum_row_width_mm"]),
         "preferred_minimum_row_width_mm": float(
             settings["preferred_minimum_row_width_mm"]
         ),
         "optimizer_workers": int(settings["optimizer_workers"]),
-        "preview_every_n_results": int(
-            settings["preview_every_n_results"]
-        ),
-        "local_optimize_top_n": int(
-            settings["local_optimize_top_n"]
-        ),
+        "preview_every_n_results": int(settings["preview_every_n_results"]),
+        "local_optimize_top_n": int(settings["local_optimize_top_n"]),
         "frame_delay_ms": int(settings["frame_delay_ms"]),
         "board_length_mm": float(board["length_mm"]),
         "board_width_mm": float(board["width_mm"]),
@@ -267,38 +247,24 @@ def update_room_settings(
 
     orientation = str(payload.get("orientation", "")).lower()
     if orientation not in {"horizontal", "vertical"}:
-        raise ValueError(
-            "'orientation' må være 'horizontal' eller 'vertical'."
-        )
+        raise ValueError("'orientation' må være 'horizontal' eller 'vertical'.")
 
     values = {
         "expansion_gap_mm": parse_float(payload, "expansion_gap_mm"),
-        "minimum_piece_length_mm": parse_float(
-            payload, "minimum_piece_length_mm"
-        ),
-        "minimum_joint_distance_mm": parse_float(
-            payload, "minimum_joint_distance_mm"
-        ),
+        "minimum_piece_length_mm": parse_float(payload, "minimum_piece_length_mm"),
+        "minimum_joint_distance_mm": parse_float(payload, "minimum_joint_distance_mm"),
         "stagger_step_mm": parse_float(payload, "stagger_step_mm"),
-        "optimization_step_mm": parse_float(
-            payload, "optimization_step_mm"
-        ),
+        "optimization_step_mm": parse_float(payload, "optimization_step_mm"),
         "row_width_optimization_step_mm": parse_float(
             payload, "row_width_optimization_step_mm"
         ),
-        "minimum_row_width_mm": parse_float(
-            payload, "minimum_row_width_mm"
-        ),
+        "minimum_row_width_mm": parse_float(payload, "minimum_row_width_mm"),
         "preferred_minimum_row_width_mm": parse_float(
             payload, "preferred_minimum_row_width_mm"
         ),
         "optimizer_workers": parse_int(payload, "optimizer_workers"),
-        "preview_every_n_results": parse_int(
-            payload, "preview_every_n_results"
-        ),
-        "local_optimize_top_n": parse_int(
-            payload, "local_optimize_top_n"
-        ),
+        "preview_every_n_results": parse_int(payload, "preview_every_n_results"),
+        "local_optimize_top_n": parse_int(payload, "local_optimize_top_n"),
         "frame_delay_ms": parse_int(payload, "frame_delay_ms"),
         "waste_percent": parse_float(payload, "waste_percent"),
         "boards_per_pack": parse_int(payload, "boards_per_pack"),
@@ -323,10 +289,7 @@ def update_room_settings(
         raise ValueError("Radbredde-steg må være større enn 0.")
     if values["minimum_row_width_mm"] <= 0:
         raise ValueError("Minimum radbredde må være større enn 0.")
-    if (
-        values["preferred_minimum_row_width_mm"]
-        < values["minimum_row_width_mm"]
-    ):
+    if values["preferred_minimum_row_width_mm"] < values["minimum_row_width_mm"]:
         raise ValueError(
             "Ønsket minimum radbredde kan ikke være mindre enn absolutt minimum."
         )
@@ -401,10 +364,7 @@ def room_canvas_payload(
             piece["y1"] += origin_y
             piece["y2"] += origin_y
 
-    outline = [
-        [x + origin_x, y + origin_y]
-        for x, y in floor.exterior.coords
-    ]
+    outline = [[x + origin_x, y + origin_y] for x, y in floor.exterior.coords]
 
     bounds = floor.bounds
     return {
@@ -420,9 +380,7 @@ def room_canvas_payload(
             "max_y": bounds[3] + origin_y,
         },
         "settings": editable_room_settings(project_config, room),
-        "minimum_piece_length": float(
-            settings["minimum_piece_length_mm"]
-        ),
+        "minimum_piece_length": float(settings["minimum_piece_length_mm"]),
         "running": room_state.running,
         "paused": room_state.paused,
         "finished": room_state.finished,
@@ -438,19 +396,31 @@ def write_piece_csv(path: Path, candidate: Candidate) -> None:
         writer = csv.writer(file, delimiter=";")
         writer.writerow(
             [
-                "rad", "segment", "bit",
-                "x1_mm", "x2_mm", "y1_mm", "y2_mm",
-                "lengde_mm", "bredde_mm",
-                "global_bordindeks", "hel_bordlengde",
+                "rad",
+                "segment",
+                "bit",
+                "x1_mm",
+                "x2_mm",
+                "y1_mm",
+                "y2_mm",
+                "lengde_mm",
+                "bredde_mm",
+                "global_bordindeks",
+                "hel_bordlengde",
             ]
         )
         for piece in candidate.pieces:
             writer.writerow(
                 [
-                    piece.row, piece.segment, piece.piece,
-                    round(piece.x1, 1), round(piece.x2, 1),
-                    round(piece.y1, 1), round(piece.y2, 1),
-                    round(piece.length, 1), round(piece.width, 1),
+                    piece.row,
+                    piece.segment,
+                    piece.piece,
+                    round(piece.x1, 1),
+                    round(piece.x2, 1),
+                    round(piece.y1, 1),
+                    round(piece.y2, 1),
+                    round(piece.length, 1),
+                    round(piece.width, 1),
                     piece.source_board_index,
                     "ja" if piece.is_full_length else "nei",
                 ]
@@ -458,9 +428,7 @@ def write_piece_csv(path: Path, candidate: Candidate) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Floor Layout Planner med flere rom."
-    )
+    parser = argparse.ArgumentParser(description="Floor Layout Planner med flere rom.")
     parser.add_argument("config", type=Path)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
@@ -513,9 +481,7 @@ def main() -> None:
             orientation=settings["orientation"],
             section_name=room["name"],
             plot_settings=settings,
-            minimum_piece_length=float(
-                settings["minimum_piece_length_mm"]
-            ),
+            minimum_piece_length=float(settings["minimum_piece_length_mm"]),
         )
 
     def optimizer_worker(
@@ -535,30 +501,20 @@ def main() -> None:
                 board_width=float(board["width_mm"]),
                 orientation=settings["orientation"],
                 stagger_step=float(settings["stagger_step_mm"]),
-                minimum_piece_length=float(
-                    settings["minimum_piece_length_mm"]
-                ),
-                minimum_joint_distance=float(
-                    settings["minimum_joint_distance_mm"]
-                ),
-                minimum_row_width=float(
-                    settings["minimum_row_width_mm"]
-                ),
+                minimum_piece_length=float(settings["minimum_piece_length_mm"]),
+                minimum_joint_distance=float(settings["minimum_joint_distance_mm"]),
+                minimum_row_width=float(settings["minimum_row_width_mm"]),
                 preferred_minimum_row_width=float(
                     settings["preferred_minimum_row_width_mm"]
                 ),
-                optimization_step=float(
-                    settings["optimization_step_mm"]
-                ),
+                optimization_step=float(settings["optimization_step_mm"]),
                 row_width_optimization_step=float(
                     settings["row_width_optimization_step_mm"]
                 ),
             )
 
             workers = int(settings["optimizer_workers"])
-            preview_every = int(
-                settings["preview_every_n_results"]
-            )
+            preview_every = int(settings["preview_every_n_results"])
             top_n = min(
                 int(settings["local_optimize_top_n"]),
                 len(inputs),
@@ -600,16 +556,11 @@ def main() -> None:
                     )
 
                     if candidate is not None:
-                        totals = room_state.profile[
-                            "timing_totals"
-                        ]
+                        totals = room_state.profile["timing_totals"]
 
                         for key, value in candidate.timings.items():
                             if key.endswith("_s"):
-                                totals[key] = (
-                                    totals.get(key, 0.0)
-                                    + float(value)
-                                )
+                                totals[key] = totals.get(key, 0.0) + float(value)
 
                         room_state.profile["local_variants"] += int(
                             candidate.timings.get(
@@ -651,22 +602,16 @@ def main() -> None:
 
                     is_new_best = (
                         room_state.best is None
-                        or candidate.score
-                        < room_state.best.score
+                        or candidate.score < room_state.best.score
                     )
 
                     if is_new_best:
                         room_state.best = candidate
 
-                    if (
-                        is_new_best
-                        or coarse_completed % preview_every == 0
-                    ):
+                    if is_new_best or coarse_completed % preview_every == 0:
                         room_state.current = candidate
 
-                    room_state.profile[
-                        "coarse_completed"
-                    ] = coarse_completed
+                    room_state.profile["coarse_completed"] = coarse_completed
 
                 update_profile(
                     phase="coarse",
@@ -700,9 +645,7 @@ def main() -> None:
             with state.lock:
                 room_state = state.rooms[room_id]
                 room_state.profile["phase"] = "refine"
-                room_state.profile["refine_total"] = len(
-                    refine_inputs
-                )
+                room_state.profile["refine_total"] = len(refine_inputs)
 
             # Nullstill best før refine, slik at den beste fullverdige
             # kandidaten prioriteres over grovkandidatene.
@@ -729,10 +672,7 @@ def main() -> None:
 
                     time.sleep(0.08)
 
-                if (
-                    refined_best is None
-                    or candidate.score < refined_best.score
-                ):
+                if refined_best is None or candidate.score < refined_best.score:
                     refined_best = candidate
 
                 with state.lock:
@@ -743,8 +683,7 @@ def main() -> None:
 
                     is_new_best = (
                         room_state.best is None
-                        or candidate.score
-                        < room_state.best.score
+                        or candidate.score < room_state.best.score
                         or candidate.phase == "refine"
                         and room_state.best.phase == "coarse"
                     )
@@ -753,9 +692,7 @@ def main() -> None:
                         room_state.best = candidate
 
                     room_state.current = candidate
-                    room_state.profile[
-                        "refine_completed"
-                    ] = refine_completed
+                    room_state.profile["refine_completed"] = refine_completed
 
                 update_profile(
                     phase="refine",
@@ -789,9 +726,7 @@ def main() -> None:
                     room_state.finished = True
                     room_state.profile["phase"] = "finished"
                     room_state.profile["eta_s"] = 0.0
-                    room_state.profile["elapsed_s"] = (
-                        time.perf_counter() - started_at
-                    )
+                    room_state.profile["elapsed_s"] = time.perf_counter() - started_at
 
         except Exception as exc:
             with state.lock:
@@ -828,11 +763,7 @@ def main() -> None:
                 "total": 0,
                 "candidates_per_second": 0.0,
                 "eta_s": None,
-                "workers": int(
-                    merged_settings(config, room)[
-                        "optimizer_workers"
-                    ]
-                ),
+                "workers": int(merged_settings(config, room)["optimizer_workers"]),
                 "coarse_total": 0,
                 "coarse_completed": 0,
                 "refine_total": 0,
@@ -872,10 +803,7 @@ def main() -> None:
                 for room in config_snapshot["rooms"]
             ]
 
-        all_bounds = [
-            room["bounds"]
-            for room in rooms_payload
-        ]
+        all_bounds = [room["bounds"] for room in rooms_payload]
         project_bounds = {
             "min_x": min(item["min_x"] for item in all_bounds),
             "min_y": min(item["min_y"] for item in all_bounds),
@@ -934,9 +862,7 @@ def main() -> None:
                 payload,
             )
 
-            temp_path = args.config.with_suffix(
-                args.config.suffix + ".tmp"
-            )
+            temp_path = args.config.with_suffix(args.config.suffix + ".tmp")
             with temp_path.open("w", encoding="utf-8") as file:
                 json.dump(updated, file, indent=2, ensure_ascii=False)
                 file.write("\n")
@@ -1005,11 +931,7 @@ def main() -> None:
 
     start_all(initial_config)
 
-    browser_host = (
-        "localhost"
-        if args.host in {"0.0.0.0", "127.0.0.1"}
-        else args.host
-    )
+    browser_host = "localhost" if args.host in {"0.0.0.0", "127.0.0.1"} else args.host
     url = f"http://{browser_host}:{args.port}"
 
     print(f"\nFloor Layout Planner kjører på: {url}")

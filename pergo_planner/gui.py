@@ -7,7 +7,6 @@ from typing import Callable
 from shapely.geometry import Polygon
 
 from .optimizer import Candidate
-from .planner import Piece
 
 
 class LiveOptimizerWindow:
@@ -81,7 +80,9 @@ class LiveOptimizerWindow:
         info.pack(side=tk.RIGHT, fill=tk.Y)
         info.pack_propagate(False)
 
-        ttk.Label(info, text="Nåværende løsning", font=("", 12, "bold")).pack(anchor="w")
+        ttk.Label(info, text="Nåværende løsning", font=("", 12, "bold")).pack(
+            anchor="w"
+        )
         self.current_var = tk.StringVar(value="–")
         ttk.Label(info, textvariable=self.current_var, justify=tk.LEFT).pack(
             anchor="w", pady=(4, 18)

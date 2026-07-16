@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, asdict
-from typing import Iterable
+from dataclasses import asdict, dataclass
 
 from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, box
 
@@ -36,6 +35,7 @@ class RowFragment:
     kan være mindre enn bordbredden når en vegg eller et innhakk starter midt
     inne i raden.
     """
+
     row: int
     segment: int
     min_x: float
@@ -62,9 +62,7 @@ def rotate_polygon_for_orientation(
     if orientation == "vertical":
         return swap_xy_polygon(polygon), True
 
-    raise ValueError(
-        "orientation må være 'horizontal' eller 'vertical'."
-    )
+    raise ValueError("orientation må være 'horizontal' eller 'vertical'.")
 
 
 def unrotate_piece(piece: Piece, swapped: bool) -> Piece:
@@ -106,9 +104,7 @@ def row_offset(
     stagger_step: float,
     base_offset: float,
 ) -> float:
-    return (
-        base_offset + row_index * stagger_step
-    ) % board_length
+    return (base_offset + row_index * stagger_step) % board_length
 
 
 def polygon_parts(geometry) -> list[Polygon]:
@@ -258,12 +254,8 @@ def split_interval_by_board_grid(
     x_start = fragment.min_x
     x_end = fragment.max_x
 
-    first_index = math.floor(
-        (x_start - offset) / board_length
-    )
-    last_index = math.ceil(
-        (x_end - offset) / board_length
-    )
+    first_index = math.floor((x_start - offset) / board_length)
+    last_index = math.ceil((x_end - offset) / board_length)
 
     cuts = [x_start]
 
@@ -284,9 +276,7 @@ def split_interval_by_board_grid(
         if end - start <= epsilon:
             continue
 
-        source_index = math.floor(
-            (((start + end) / 2) - offset) / board_length
-        )
+        source_index = math.floor((((start + end) / 2) - offset) / board_length)
         length = end - start
 
         pieces.append(
@@ -337,9 +327,7 @@ def create_plan(
         row_index = fragment.row - 1
 
         if row_offsets and fragment.row in row_offsets:
-            offset = min_x + (
-                float(row_offsets[fragment.row]) % board_length
-            )
+            offset = min_x + (float(row_offsets[fragment.row]) % board_length)
         else:
             offset = min_x + row_offset(
                 row_index=row_index,
@@ -354,10 +342,7 @@ def create_plan(
             board_length=board_length,
         )
 
-        pieces.extend(
-            unrotate_piece(piece, swapped)
-            for piece in row_pieces
-        )
+        pieces.extend(unrotate_piece(piece, swapped) for piece in row_pieces)
 
     return pieces
 
@@ -385,7 +370,4 @@ def create_row_fragments(
         row_width_offset=row_width_offset,
     )
 
-    return [
-        unrotate_fragment(fragment, swapped)
-        for fragment in fragments
-    ]
+    return [unrotate_fragment(fragment, swapped) for fragment in fragments]

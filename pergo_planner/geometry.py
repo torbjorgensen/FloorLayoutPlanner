@@ -18,9 +18,7 @@ def build_floor_polygon(rectangles: list[dict], expansion_gap: float) -> Polygon
         height = float(rectangle["height"])
 
         if width <= 0 or height <= 0:
-            raise ValueError(
-                f"Rektangel {index} må ha positiv bredde og høyde."
-            )
+            raise ValueError(f"Rektangel {index} må ha positiv bredde og høyde.")
 
         parts.append(box(x, y, x + width, y + height))
 
@@ -36,14 +34,11 @@ def build_floor_polygon(rectangles: list[dict], expansion_gap: float) -> Polygon
         floor = floor.buffer(-expansion_gap, join_style=2)
 
         if floor.is_empty:
-            raise ValueError(
-                "Ekspansjonsfugen er så stor at gulvarealet forsvinner."
-            )
+            raise ValueError("Ekspansjonsfugen er så stor at gulvarealet forsvinner.")
 
         if floor.geom_type != "Polygon":
             raise ValueError(
-                "Ekspansjonsfugen delte gulvet i flere deler. "
-                "Reduser expansion_gap_mm."
+                "Ekspansjonsfugen delte gulvet i flere deler. Reduser expansion_gap_mm."
             )
 
     return floor
@@ -51,8 +46,5 @@ def build_floor_polygon(rectangles: list[dict], expansion_gap: float) -> Polygon
 
 def swap_xy_polygon(polygon: Polygon) -> Polygon:
     exterior = [(y, x) for x, y in polygon.exterior.coords]
-    holes = [
-        [(y, x) for x, y in ring.coords]
-        for ring in polygon.interiors
-    ]
+    holes = [[(y, x) for x, y in ring.coords] for ring in polygon.interiors]
     return Polygon(exterior, holes)
