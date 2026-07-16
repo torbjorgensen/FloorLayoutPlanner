@@ -289,6 +289,50 @@ function draw() {
     const x = value => margin + (value - bounds.min_x) * scale;
     const y = value => margin + (value - bounds.min_y) * scale;
 
+    for (const connection of latestState.connections || []) {
+        const passage = connection.passage;
+
+        if (!passage) {
+            continue;
+        }
+
+        context.save();
+
+        context.fillStyle =
+            connection.type === "continuous_then_cut"
+                ? "rgba(210, 235, 210, 0.85)"
+                : "rgba(180, 180, 180, 0.55)";
+
+        context.fillRect(
+            x(passage.x),
+            y(passage.y),
+            passage.width * scale,
+            passage.height * scale,
+        );
+
+        for (const piece of connection.passage_pieces || []) {
+            context.fillStyle = "#dff2df";
+            context.strokeStyle = "#667a66";
+            context.lineWidth = 0.8;
+
+            context.fillRect(
+                x(piece.x1),
+                y(piece.y1),
+                (piece.x2 - piece.x1) * scale,
+                (piece.y2 - piece.y1) * scale,
+            );
+
+            context.strokeRect(
+                x(piece.x1),
+                y(piece.y1),
+                (piece.x2 - piece.x1) * scale,
+                (piece.y2 - piece.y1) * scale,
+            );
+        }
+
+        context.restore();
+    }
+
     for (const room of latestState.rooms) {
         const selected = room.id === selectedRoomId;
 
@@ -341,46 +385,110 @@ function draw() {
         );
     }
     for (const connection of latestState.connections || []) {
-    const opening = connection.opening;
+        const opening = connection.opening;
 
-    context.save();
+        context.save();
 
-    context.beginPath();
-    context.moveTo(x(opening.x1), y(opening.y1));
-    context.lineTo(x(opening.x2), y(opening.y2));
+        context.beginPath();
+        context.moveTo(x(opening.x1), y(opening.y1));
+        context.lineTo(x(opening.x2), y(opening.y2));
 
-    context.strokeStyle =
-        connection.type === "open_passage"
-            ? "#00a3ff"
-            : "#ff9800";
+        const analysis = connection.analysis || {};
+        const alignment = analysis.row_alignment_percent;
 
-    context.lineWidth =
-        connection.type === "open_passage" ? 7 : 4;
+        if (alignment === null || alignment === undefined) {
+            context.strokeStyle = "#777777";
+        } else if (alignment >= 90) {
+            context.strokeStyle = "#1b8f3a";
+        } else if (alignment >= 60) {
+            context.strokeStyle = "#e28a00";
+        } else {
+            context.strokeStyle = "#c62828";
+        }
 
-    context.setLineDash(
-        connection.type === "open_passage"
-            ? []
-            : [10, 6]
-    );
+        context.lineWidth =
+            connection.type === "open_passage" ? 7 : 4;
 
-    context.stroke();
+        context.setLineDash(
+            connection.type === "open_passage"
+                ? []
+                : [10, 6]
+        );
 
-    const middleX = (opening.x1 + opening.x2) / 2;
-    const middleY = (opening.y1 + opening.y2) / 2;
+        context.stroke();
 
-    context.setLineDash([]);
-    context.fillStyle = "#005f99";
-    context.font = "600 12px sans-serif";
-    context.fillText(
-        connection.type === "open_passage"
+        const middleX = (opening.x1 + opening.x2) / 2;
+        const middleY = (opening.y1 + opening.y2) / 2;
+
+        context.setLineDash([]);
+        context.fillStyle = "#005f99";
+        context.font = "600 12px sans-serif";
+
+        let connectionText = connection.type === "open_passage"
             ? "Åpen passasje"
-            : "Overgang",
-        x(middleX) + 6,
-        y(middleY) - 6,
-    );
+            : "Overgang";
 
-    context.restore();
-}
+        if (
+            analysis.row_mismatch_mm !== null
+            && analysis.row_mismatch_mm !== undefined
+        ) {
+            connectionText +=
+                ` – avvik ${analysis.row_mismatch_mm.toFixed(0)} mm`;
+        }
+
+        context.fillText(
+            connectionText,
+            x(middleX) + 6,
+            y(middleY) - 6,
+        );
+        context.restore();
+    }
+
+    for (const connection of latestState.connections || []) {
+        if (
+            connection.type !== "continuous_then_cut"
+            || !connection.passage
+            || !connection.cut
+        ) {
+            continue;
+        }
+
+        const passage = connection.passage;
+        const cut = connection.cut;
+
+        context.save();
+        context.fillStyle = "#202020";
+
+        if (cut.axis === "y") {
+            const cutY =
+                passage.y
+                + passage.height / 2
+                - cut.gap_width_mm / 2;
+
+            context.fillRect(
+                x(passage.x),
+                y(cutY),
+                passage.width * scale,
+                Math.max(2, cut.gap_width_mm * scale),
+            );
+        } else {
+            const cutX =
+                passage.x
+                + passage.width / 2
+                - cut.gap_width_mm / 2;
+
+            context.fillRect(
+                x(cutX),
+                y(passage.y),
+                Math.max(2, cut.gap_width_mm * scale),
+                passage.height * scale,
+            );
+        }
+
+        context.restore();
+    }
+
+
 }
 
 async function refreshState() {

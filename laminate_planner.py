@@ -13,6 +13,7 @@ from typing import Any
 
 from flask import Flask, jsonify, render_template, request
 
+from pergo_planner.connection_scorer import score_row_alignment
 from pergo_planner.connections import (
     connection_payload,
     parse_connections,
@@ -458,6 +459,58 @@ def main() -> None:
             raise ValueError(f"Ukjent rom-id: {room_id}")
         return room
 
+    def connection_analysis_payload(
+        config: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        board_width = float(config["board"]["width_mm"])
+        analyses = []
+
+        for connection in state.connections:
+            room_a = room_by_id(config, connection.room_a)
+            room_b = room_by_id(config, connection.room_b)
+
+            room_state_a = state.rooms[connection.room_a]
+            room_state_b = state.rooms[connection.room_b]
+
+            candidate_a = room_state_a.best
+            candidate_b = room_state_b.best
+
+            payload = connection_payload(connection)
+
+            if candidate_a is None or candidate_b is None:
+                payload["analysis"] = {
+                    "available": False,
+                    "reason": "Begge rom må være optimalisert.",
+                    "row_mismatch_mm": None,
+                    "row_alignment_percent": None,
+                    "weighted_penalty": None,
+                }
+                analyses.append(payload)
+                continue
+
+            settings_a = merged_settings(config, room_a)
+            settings_b = merged_settings(config, room_b)
+
+            floor_a = local_floor(config, room_a)
+            floor_b = local_floor(config, room_b)
+
+            payload["analysis"] = score_row_alignment(
+                connection=connection,
+                room_a=room_a,
+                candidate_a=candidate_a,
+                orientation_a=settings_a["orientation"],
+                floor_bounds_a=floor_a.bounds,
+                room_b=room_b,
+                candidate_b=candidate_b,
+                orientation_b=settings_b["orientation"],
+                floor_bounds_b=floor_b.bounds,
+                board_width=board_width,
+            )
+
+            analyses.append(payload)
+
+        return analyses
+
     def save_room_best(
         room_id: str,
         generation: int,
@@ -825,9 +878,7 @@ def main() -> None:
                 "rooms": rooms_payload,
                 "bounds": project_bounds,
                 "output_dir": str(output_dir),
-                "connections": [
-                    connection_payload(connection) for connection in state.connections
-                ],
+                "connections": connection_analysis_payload(config_snapshot),
             }
         )
 

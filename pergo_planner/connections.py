@@ -3,12 +3,13 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from .models import Opening, RoomConnection
+from .models import CutSettings, Opening, Passage, RoomConnection
 
 ALLOWED_CONNECTION_TYPES = {
     "open_passage",
     "threshold",
     "closed_door",
+    "continuous_then_cut",
 }
 
 
@@ -74,6 +75,70 @@ def parse_opening(payload: Mapping[str, Any]) -> Opening:
     return opening
 
 
+def parse_passage(payload: Mapping[str, Any]) -> Passage:
+    passage = Passage(
+        x=_require_float(payload, "x"),
+        y=_require_float(payload, "y"),
+        width=_require_float(payload, "width"),
+        height=_require_float(payload, "height"),
+    )
+
+    if passage.width <= 0:
+        raise ValueError("'passage.width' må være større enn 0.")
+
+    if passage.height <= 0:
+        raise ValueError("'passage.height' må være større enn 0.")
+
+    return passage
+
+
+def parse_cut_settings(
+    payload: Mapping[str, Any],
+    passage: Passage,
+) -> CutSettings:
+    axis = _require_string(payload, "axis").lower()
+
+    if axis not in {"x", "y"}:
+        raise ValueError("'cut.axis' må være 'x' eller 'y'.")
+
+    try:
+        gap_width = float(payload.get("gap_width_mm", 5.0))
+        edge_clearance = float(payload.get("edge_clearance_mm", 15.0))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Sagbredde og kantklaring må være tall.") from exc
+
+    prefer_existing_joint = _optional_bool(
+        payload,
+        "prefer_existing_joint",
+        True,
+    )
+
+    if gap_width <= 0:
+        raise ValueError("'cut.gap_width_mm' må være større enn 0.")
+
+    if edge_clearance < 0:
+        raise ValueError("'cut.edge_clearance_mm' kan ikke være negativ.")
+
+    passage_depth = passage.width if axis == "x" else passage.height
+
+    available_depth = passage_depth - 2 * edge_clearance
+
+    if available_depth <= 0:
+        raise ValueError(
+            "Kantklaringen etterlater ikke noe gyldig område for ekspansjonsfugen."
+        )
+
+    if gap_width >= available_depth:
+        raise ValueError("Sagsporet er for bredt for det tillatte området i passasjen.")
+
+    return CutSettings(
+        axis=axis,
+        gap_width_mm=gap_width,
+        edge_clearance_mm=edge_clearance,
+        prefer_existing_joint=prefer_existing_joint,
+    )
+
+
 def parse_connection(
     payload: Mapping[str, Any],
     *,
@@ -123,6 +188,25 @@ def parse_connection(
     if weight <= 0:
         raise ValueError("'weight' må være større enn 0.")
 
+    passage = None
+    cut = None
+
+    if connection_type == "continuous_then_cut":
+        passage_payload = _require_mapping(
+            payload.get("passage"),
+            "passage",
+        )
+        passage = parse_passage(passage_payload)
+
+        cut_payload = _require_mapping(
+            payload.get("cut", {}),
+            "cut",
+        )
+        cut = parse_cut_settings(
+            cut_payload,
+            passage,
+        )
+
     return RoomConnection(
         connection_id=connection_id,
         room_a=room_a,
@@ -140,6 +224,8 @@ def parse_connection(
             False,
         ),
         weight=weight,
+        passage=passage,
+        cut=cut,
     )
 
 
@@ -186,7 +272,7 @@ def parse_connections(
 def connection_payload(
     connection: RoomConnection,
 ) -> dict[str, Any]:
-    return {
+    payload = {
         "id": connection.connection_id,
         "room_a": connection.room_a,
         "room_b": connection.room_b,
@@ -203,3 +289,21 @@ def connection_payload(
         },
         "weight": connection.weight,
     }
+
+    if connection.passage is not None:
+        payload["passage"] = {
+            "x": connection.passage.x,
+            "y": connection.passage.y,
+            "width": connection.passage.width,
+            "height": connection.passage.height,
+        }
+
+    if connection.cut is not None:
+        payload["cut"] = {
+            "axis": connection.cut.axis,
+            "gap_width_mm": connection.cut.gap_width_mm,
+            "edge_clearance_mm": (connection.cut.edge_clearance_mm),
+            "prefer_existing_joint": (connection.cut.prefer_existing_joint),
+        }
+
+    return payload

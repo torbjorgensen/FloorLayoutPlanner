@@ -64,3 +64,21 @@ class RoomConnection:
     align_rows: bool = True
     align_joints: bool = False
     weight: float = 1.0
+    passage: Passage | None = None
+    cut: CutSettings | None = None
+
+
+@dataclass(frozen=True)
+class Passage:
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+@dataclass(frozen=True)
+class CutSettings:
+    axis: str
+    gap_width_mm: float = 5.0
+    edge_clearance_mm: float = 15.0
+    prefer_existing_joint: bool = True

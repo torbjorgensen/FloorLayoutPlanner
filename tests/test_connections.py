@@ -91,3 +91,87 @@ def test_invalid_connection_type_is_rejected() -> None:
 
     with pytest.raises(ValueError, match="Ugyldig"):
         parse_connections(config)
+
+
+def test_parse_continuous_then_cut_connection() -> None:
+    config = base_config()
+
+    config["connections"][0].update(
+        {
+            "type": "continuous_then_cut",
+            "passage": {
+                "x": 1000,
+                "y": 1940,
+                "width": 900,
+                "height": 120,
+            },
+            "cut": {
+                "axis": "y",
+                "gap_width_mm": 5,
+                "edge_clearance_mm": 15,
+                "prefer_existing_joint": True,
+            },
+        }
+    )
+
+    connection = parse_connections(config)[0]
+
+    assert connection.passage is not None
+    assert connection.cut is not None
+    assert connection.passage.height == 120
+    assert connection.cut.axis == "y"
+    assert connection.cut.gap_width_mm == 5
+    assert connection.cut.prefer_existing_joint is True
+
+
+def test_continuous_connection_requires_passage() -> None:
+    config = base_config()
+    config["connections"][0]["type"] = "continuous_then_cut"
+
+    with pytest.raises(ValueError, match="passage"):
+        parse_connections(config)
+
+
+def test_cut_axis_must_be_valid() -> None:
+    config = base_config()
+
+    config["connections"][0].update(
+        {
+            "type": "continuous_then_cut",
+            "passage": {
+                "x": 1000,
+                "y": 1940,
+                "width": 900,
+                "height": 120,
+            },
+            "cut": {
+                "axis": "diagonal",
+            },
+        }
+    )
+
+    with pytest.raises(ValueError, match="x.*y"):
+        parse_connections(config)
+
+
+def test_edge_clearance_must_leave_cut_area() -> None:
+    config = base_config()
+
+    config["connections"][0].update(
+        {
+            "type": "continuous_then_cut",
+            "passage": {
+                "x": 1000,
+                "y": 1940,
+                "width": 900,
+                "height": 120,
+            },
+            "cut": {
+                "axis": "y",
+                "edge_clearance_mm": 60,
+            },
+        }
+    )
+
+    with pytest.raises(ValueError, match="gyldig område"):
+        parse_connections(config)
