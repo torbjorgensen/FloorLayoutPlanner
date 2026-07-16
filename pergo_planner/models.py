@@ -44,3 +44,23 @@ class CandidateInput:
     optimization_step: float
     base_offset: float
     row_width_offset: float
+
+
+@dataclass(frozen=True)
+class Opening:
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+
+@dataclass(frozen=True)
+class RoomConnection:
+    connection_id: str
+    room_a: str
+    room_b: str
+    connection_type: str
+    opening: Opening
+    align_rows: bool = True
+    align_joints: bool = False
+    weight: float = 1.0
