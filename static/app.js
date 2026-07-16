@@ -340,6 +340,47 @@ function draw() {
             y(room.bounds.min_y) + 20,
         );
     }
+    for (const connection of latestState.connections || []) {
+    const opening = connection.opening;
+
+    context.save();
+
+    context.beginPath();
+    context.moveTo(x(opening.x1), y(opening.y1));
+    context.lineTo(x(opening.x2), y(opening.y2));
+
+    context.strokeStyle =
+        connection.type === "open_passage"
+            ? "#00a3ff"
+            : "#ff9800";
+
+    context.lineWidth =
+        connection.type === "open_passage" ? 7 : 4;
+
+    context.setLineDash(
+        connection.type === "open_passage"
+            ? []
+            : [10, 6]
+    );
+
+    context.stroke();
+
+    const middleX = (opening.x1 + opening.x2) / 2;
+    const middleY = (opening.y1 + opening.y2) / 2;
+
+    context.setLineDash([]);
+    context.fillStyle = "#005f99";
+    context.font = "600 12px sans-serif";
+    context.fillText(
+        connection.type === "open_passage"
+            ? "Åpen passasje"
+            : "Overgang",
+        x(middleX) + 6,
+        y(middleY) - 6,
+    );
+
+    context.restore();
+}
 }
 
 async function refreshState() {

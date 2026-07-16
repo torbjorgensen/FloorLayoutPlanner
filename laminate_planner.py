@@ -13,7 +13,10 @@ from typing import Any
 
 from flask import Flask, jsonify, render_template, request
 
-from pergo_planner.connections import connection_payload, parse_connections
+from pergo_planner.connections import (
+    connection_payload,
+    parse_connections,
+)
 from pergo_planner.geometry import build_floor_polygon
 from pergo_planner.optimizer import (
     Candidate,
