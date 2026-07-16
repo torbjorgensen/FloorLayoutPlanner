@@ -401,6 +401,7 @@ def _piece_from_polygon(
         length=(max_x - min_x if orientation == "horizontal" else max_y - min_y),
         width=(max_y - min_y if orientation == "horizontal" else max_x - min_x),
         source_board_index=source.source_board_index,
+        physical_board_id=source.physical_board_id,
         is_full_length=False,
     )
 

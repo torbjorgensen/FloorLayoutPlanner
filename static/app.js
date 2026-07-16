@@ -19,7 +19,7 @@ let formRoomId = null;
 let refreshInProgress = false;
 let renderedPieceHitboxes = [];
 let hoveredPieceKey = null;
-let hoveredSourceBoardIndex = null;
+let hoveredPhysicalBoardId = null;
 let hoverTooltip = null;
 
 
@@ -1092,6 +1092,7 @@ function draw() {
 function pieceKey(piece, roomId = "") {
     return [
         roomId,
+        boardIdentity(piece),
         piece.row,
         piece.segment,
         piece.piece,
@@ -1118,9 +1119,9 @@ function drawPieces(
             && piece.length < minimumPieceLength;
         const key = pieceKey(piece, roomId);
         const sameSource =
-            hoveredSourceBoardIndex !== null
-            && piece.source_board_index
-                === hoveredSourceBoardIndex;
+            hoveredPhysicalBoardId !== null
+            && boardIdentity(piece)
+                === hoveredPhysicalBoardId;
         const isHovered = key === hoveredPieceKey;
 
         context.fillStyle = isHovered
@@ -1211,19 +1212,30 @@ function ensureHoverTooltip() {
 }
 
 
-function sourceBoardFragments(sourceBoardIndex) {
+function boardIdentity(piece) {
+    return piece.physical_board_id
+        || [
+            "legacy",
+            piece.row,
+            piece.segment,
+            piece.source_board_index,
+        ].join(":");
+}
+
+
+function physicalBoardFragments(physicalBoardId) {
     return renderedPieceHitboxes.filter(
         item =>
-            item.piece.source_board_index
-            === sourceBoardIndex,
+            boardIdentity(item.piece)
+            === physicalBoardId,
     );
 }
 
 
 function hoverInfoHtml(hitbox) {
     const piece = hitbox.piece;
-    const fragments = sourceBoardFragments(
-        piece.source_board_index,
+    const fragments = physicalBoardFragments(
+        boardIdentity(piece),
     );
     const roomIds = [
         ...new Set(
@@ -1242,14 +1254,15 @@ function hoverInfoHtml(hitbox) {
         || fragments.length > 1;
 
     return `
-        <strong>Bord ${piece.source_board_index}</strong><br>
+        <strong>Fysisk bord ${boardIdentity(piece)}</strong><br>
         Rom: ${hitbox.roomId || "–"}<br>
         Rad ${piece.row}, segment ${piece.segment}, bit ${piece.piece}<br>
         Lengde: ${formatNumber(piece.length, 0)} mm<br>
         Bredde: ${formatNumber(piece.width, 0)} mm<br>
         Kapp: ${isCut ? "ja" : "nei"}<br>
         Hele bordlengden: ${piece.is_full_length ? "ja" : "nei"}<br>
-        Fragmenter fra samme bord: ${fragments.length}<br>
+        Synlige deler fra samme bord: ${fragments.length}<br>
+        Kappregel: maks ett tverrkapp og ett langsgående kapp<br>
         ${crossesRooms
             ? `Delt ved overgang mellom: ${roomIds.join(" / ")}<br>`
             : ""}
@@ -1295,10 +1308,10 @@ canvas.addEventListener("mousemove", event => {
     if (!hitbox) {
         const changed =
             hoveredPieceKey !== null
-            || hoveredSourceBoardIndex !== null;
+            || hoveredPhysicalBoardId !== null;
 
         hoveredPieceKey = null;
-        hoveredSourceBoardIndex = null;
+        hoveredPhysicalBoardId = null;
         tooltip.style.display = "none";
 
         if (changed) {
@@ -1310,12 +1323,12 @@ canvas.addEventListener("mousemove", event => {
 
     const changed =
         hoveredPieceKey !== hitbox.key
-        || hoveredSourceBoardIndex
-            !== hitbox.piece.source_board_index;
+        || hoveredPhysicalBoardId
+            !== boardIdentity(hitbox.piece);
 
     hoveredPieceKey = hitbox.key;
-    hoveredSourceBoardIndex =
-        hitbox.piece.source_board_index;
+    hoveredPhysicalBoardId =
+        boardIdentity(hitbox.piece);
 
     tooltip.innerHTML = hoverInfoHtml(hitbox);
     tooltip.style.display = "block";
@@ -1347,10 +1360,10 @@ canvas.addEventListener("mousemove", event => {
 canvas.addEventListener("mouseleave", () => {
     const changed =
         hoveredPieceKey !== null
-        || hoveredSourceBoardIndex !== null;
+        || hoveredPhysicalBoardId !== null;
 
     hoveredPieceKey = null;
-    hoveredSourceBoardIndex = null;
+    hoveredPhysicalBoardId = null;
 
     if (hoverTooltip) {
         hoverTooltip.style.display = "none";

@@ -113,6 +113,7 @@ def create_passage_preview(
                         max_y - min_y if orientation == "horizontal" else max_x - min_x
                     ),
                     source_board_index=piece.source_board_index,
+                    physical_board_id=piece.physical_board_id,
                     is_full_length=False,
                 )
             )

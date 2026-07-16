@@ -20,6 +20,7 @@ class Piece:
     length: float
     width: float
     source_board_index: int
+    physical_board_id: str
     is_full_length: bool
 
     def to_dict(self) -> dict:
@@ -80,6 +81,7 @@ def unrotate_piece(piece: Piece, swapped: bool) -> Piece:
         length=piece.length,
         width=piece.width,
         source_board_index=piece.source_board_index,
+        physical_board_id=piece.physical_board_id,
         is_full_length=piece.is_full_length,
     )
 
@@ -277,6 +279,7 @@ def split_interval_by_board_grid(
             continue
 
         source_index = math.floor((((start + end) / 2) - offset) / board_length)
+        physical_board_id = f"r{fragment.row}:s{fragment.segment}:g{source_index}"
         length = end - start
 
         pieces.append(
@@ -291,6 +294,7 @@ def split_interval_by_board_grid(
                 length=length,
                 width=fragment.width,
                 source_board_index=source_index,
+                physical_board_id=physical_board_id,
                 is_full_length=abs(length - board_length) < 0.5,
             )
         )

@@ -133,6 +133,7 @@ class ProjectState:
             "length": piece.length,
             "width": piece.width,
             "source_board_index": piece.source_board_index,
+            "physical_board_id": piece.physical_board_id,
             "is_full_length": piece.is_full_length,
         }
 
