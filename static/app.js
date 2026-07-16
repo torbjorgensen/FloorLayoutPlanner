@@ -313,7 +313,26 @@ function draw() {
 
     for (const connection of latestState.connections || []) {
         if (connection.type !== "continuous_then_cut" || !connection.continuous?.candidate) continue;
-        drawPieces(connection.continuous.candidate.pieces, 0, true, x, y, scale);
+
+        const roomPieces =
+            connection.continuous.room_pieces || {};
+
+        for (const [roomId, pieces] of Object.entries(roomPieces)) {
+            const room = latestState.rooms.find(
+                item => item.id === roomId
+            );
+
+            drawPieces(
+                pieces,
+                room?.minimum_piece_length || 0,
+                roomId === selectedRoomId,
+                x,
+                y,
+                scale,
+            );
+        }
+
+
         const cut = connection.continuous.cut_plan;
         const passage = connection.passage;
         if (cut && passage) {

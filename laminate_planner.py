@@ -19,6 +19,7 @@ from pergo_planner.continuous_solver import (
     build_continuous_floor,
     continuous_candidate_score,
     cut_plan_payload,
+    split_candidate_at_cut,
 )
 from pergo_planner.geometry import build_floor_polygon
 from pergo_planner.models import Candidate
@@ -85,6 +86,7 @@ class ContinuousState:
         self.current: Candidate | None = None
         self.best: Candidate | None = None
         self.cut_plan = None
+        self.room_pieces: dict[str, list] = {}
         self.generation = 0
 
 
@@ -861,6 +863,14 @@ def main() -> None:
                 continuous_state.best = best_item[1]
                 continuous_state.current = best_item[1]
                 continuous_state.cut_plan = best_item[2]
+                continuous_state.room_pieces = split_candidate_at_cut(
+                    candidate=best_item[1],
+                    room_a=room_a,
+                    room_b=room_b,
+                    connection=connection,
+                    cut_plan=best_item[2],
+                    orientation=orientation,
+                )
                 continuous_state.running = False
                 continuous_state.finished = True
         except Exception as exc:
@@ -879,6 +889,7 @@ def main() -> None:
         continuous_state.current = None
         continuous_state.best = None
         continuous_state.cut_plan = None
+        continuous_state.room_pieces = {}
         threading.Thread(
             target=continuous_worker,
             args=(connection, generation, copy.deepcopy(config)),
@@ -986,6 +997,14 @@ def main() -> None:
                                     state.continuous[connection.connection_id].current
                                     or state.continuous[connection.connection_id].best
                                 ),
+                                "room_pieces": {
+                                    room_id: [
+                                        state.piece_payload(piece) for piece in pieces
+                                    ]
+                                    for room_id, pieces in state.continuous[
+                                        connection.connection_id
+                                    ].room_pieces.items()
+                                },
                                 "cut_plan": (
                                     cut_plan_payload(
                                         state.continuous[
