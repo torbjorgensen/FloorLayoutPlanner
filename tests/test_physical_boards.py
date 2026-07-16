@@ -1,13 +1,25 @@
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, defaultdict
 
+import pytest
 from shapely.geometry import box
 
 from pergo_planner.planner import create_plan
 
+SAW_KERF_MM = 3.2
 
-def test_physical_board_id_is_unique_per_unsplit_piece() -> None:
+
+def group_by_board(pieces):
+    grouped = defaultdict(list)
+
+    for piece in pieces:
+        grouped[piece.physical_board_id].append(piece)
+
+    return grouped
+
+
+def test_physical_board_ids_are_present() -> None:
     pieces = create_plan(
         floor=box(0, 0, 4300, 480),
         board_length=2050,
@@ -15,37 +27,57 @@ def test_physical_board_id_is_unique_per_unsplit_piece() -> None:
         orientation="horizontal",
         stagger_step=700,
         minimum_piece_length=300,
+        saw_kerf_mm=SAW_KERF_MM,
     )
 
-    ids = [piece.physical_board_id for piece in pieces]
-
-    assert ids
-    assert all(ids)
-    assert len(ids) == len(set(ids))
+    assert pieces
+    assert all(piece.physical_board_id for piece in pieces)
 
 
-def test_same_grid_index_in_different_rows_is_not_same_physical_board() -> None:
+def test_cut_board_can_have_two_visible_placements() -> None:
     pieces = create_plan(
-        floor=box(0, 0, 2050, 480),
+        floor=box(0, 0, 3550, 480),
         board_length=2050,
         board_width=240,
         orientation="horizontal",
-        stagger_step=0,
+        stagger_step=700,
         minimum_piece_length=300,
+        saw_kerf_mm=SAW_KERF_MM,
+    )
+    grouped = group_by_board(pieces)
+
+    reused = [
+        fragments
+        for fragments in grouped.values()
+        if len({piece.row for piece in fragments}) == 2
+    ]
+
+    assert reused
+
+    fragments = reused[0]
+
+    assert len(fragments) == 2
+    assert sum(piece.length for piece in fragments) + SAW_KERF_MM == pytest.approx(2050)
+
+
+def test_same_grid_position_may_be_same_physical_board_after_reuse() -> None:
+    pieces = create_plan(
+        floor=box(0, 0, 3550, 480),
+        board_length=2050,
+        board_width=240,
+        orientation="horizontal",
+        stagger_step=700,
+        minimum_piece_length=300,
+        saw_kerf_mm=SAW_KERF_MM,
+    )
+    grouped = group_by_board(pieces)
+
+    assert any(
+        len({piece.row for piece in fragments}) == 2 for fragments in grouped.values()
     )
 
-    by_grid_index: dict[int, set[str]] = {}
 
-    for piece in pieces:
-        by_grid_index.setdefault(
-            piece.source_board_index,
-            set(),
-        ).add(piece.physical_board_id)
-
-    assert any(len(board_ids) > 1 for board_ids in by_grid_index.values())
-
-
-def test_one_physical_board_has_only_one_piece_before_transition_cut() -> None:
+def test_physical_board_has_at_most_two_cross_cut_placements() -> None:
     pieces = create_plan(
         floor=box(0, 0, 4300, 720),
         board_length=2050,
@@ -53,8 +85,37 @@ def test_one_physical_board_has_only_one_piece_before_transition_cut() -> None:
         orientation="horizontal",
         stagger_step=700,
         minimum_piece_length=300,
+        saw_kerf_mm=SAW_KERF_MM,
     )
 
-    counts = Counter(piece.physical_board_id for piece in pieces)
+    rows_per_board = {
+        board_id: {piece.row for piece in fragments}
+        for board_id, fragments in group_by_board(pieces).items()
+    }
 
-    assert max(counts.values()) == 1
+    assert max(len(rows) for rows in rows_per_board.values()) <= 2
+
+
+def test_no_physical_board_is_reused_in_three_rows() -> None:
+    pieces = create_plan(
+        floor=box(0, 0, 6000, 1200),
+        board_length=2050,
+        board_width=240,
+        orientation="horizontal",
+        stagger_step=700,
+        minimum_piece_length=300,
+        saw_kerf_mm=SAW_KERF_MM,
+    )
+    counts = Counter(
+        (
+            piece.physical_board_id,
+            piece.row,
+        )
+        for piece in pieces
+    )
+    rows_by_board = defaultdict(set)
+
+    for board_id, row in counts:
+        rows_by_board[board_id].add(row)
+
+    assert all(len(rows) <= 2 for rows in rows_by_board.values())

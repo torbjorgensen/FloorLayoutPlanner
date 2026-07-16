@@ -4,7 +4,6 @@ import time
 
 from shapely import wkb
 
-from .board_allocator import assign_physical_boards
 from .layout_solver import improve_problem_rows
 from .models import Candidate, CandidateInput
 from .planner import Piece, create_plan
@@ -43,12 +42,6 @@ def _candidate_from_evaluation(
         data.row_width_offset,
     )
 
-    allocated_pieces = assign_physical_boards(
-        pieces,
-        board_length=data.board_length,
-        orientation=data.orientation,
-    )
-
     timings = dict(timings)
     timings["final_scoring_s"] = time.perf_counter() - evaluation_started
     timings["total_s"] = sum(
@@ -60,15 +53,15 @@ def _candidate_from_evaluation(
         total_attempts=data.total_attempts,
         phase=phase,
         base_offset=data.base_offset,
-        row_width_offset=data.row_width_offset,
-        pieces=allocated_pieces,
+        row_width_offset=(data.row_width_offset),
+        pieces=pieces,
         short_count=short_count,
-        very_short_count=very_short_count,
+        very_short_count=(very_short_count),
         shortest_piece=shortest_piece,
-        joint_violations=joint_violations,
+        joint_violations=(joint_violations),
         narrow_row_count=narrow_count,
-        very_narrow_row_count=very_narrow_count,
-        narrowest_row_width=narrowest_width,
+        very_narrow_row_count=(very_narrow_count),
+        narrowest_row_width=(narrowest_width),
         row_offsets=row_offsets,
         score=score,
         timings=timings,
@@ -80,21 +73,18 @@ def evaluate_candidate_fast(
 ) -> Candidate:
     total_started = time.perf_counter()
     floor = wkb.loads(data.floor_wkb)
-
     generation_started = time.perf_counter()
 
     pieces = create_plan(
         floor=floor,
-        board_length=data.board_length,
+        board_length=(data.board_length),
         board_width=data.board_width,
         orientation=data.orientation,
-        stagger_step=data.stagger_step,
-        minimum_piece_length=data.minimum_piece_length,
+        stagger_step=(data.stagger_step),
+        minimum_piece_length=(data.minimum_piece_length),
         base_offset=data.base_offset,
-        row_width_offset=data.row_width_offset,
+        row_width_offset=(data.row_width_offset),
     )
-
-    generation_s = time.perf_counter() - generation_started
 
     candidate = _candidate_from_evaluation(
         data=data,
@@ -102,12 +92,11 @@ def evaluate_candidate_fast(
         pieces=pieces,
         row_offsets={},
         timings={
-            "plan_generation_s": generation_s,
+            "plan_generation_s": (time.perf_counter() - generation_started),
             "local_optimization_s": 0.0,
             "local_variants": 0,
         },
     )
-
     timings = dict(candidate.timings)
     timings["wall_clock_s"] = time.perf_counter() - total_started
 
@@ -124,22 +113,19 @@ def evaluate_candidate_full(
 ) -> Candidate:
     total_started = time.perf_counter()
     floor = wkb.loads(data.floor_wkb)
-
     generation_started = time.perf_counter()
 
     initial_pieces = create_plan(
         floor=floor,
-        board_length=data.board_length,
+        board_length=(data.board_length),
         board_width=data.board_width,
         orientation=data.orientation,
-        stagger_step=data.stagger_step,
-        minimum_piece_length=data.minimum_piece_length,
+        stagger_step=(data.stagger_step),
+        minimum_piece_length=(data.minimum_piece_length),
         base_offset=data.base_offset,
-        row_width_offset=data.row_width_offset,
+        row_width_offset=(data.row_width_offset),
     )
-
     generation_s = time.perf_counter() - generation_started
-
     local_started = time.perf_counter()
 
     (
@@ -149,21 +135,19 @@ def evaluate_candidate_full(
         tested_variants,
     ) = improve_problem_rows(
         floor=floor,
-        board_length=data.board_length,
+        board_length=(data.board_length),
         board_width=data.board_width,
         orientation=data.orientation,
-        stagger_step=data.stagger_step,
-        minimum_piece_length=data.minimum_piece_length,
-        minimum_joint_distance=data.minimum_joint_distance,
-        minimum_row_width=data.minimum_row_width,
+        stagger_step=(data.stagger_step),
+        minimum_piece_length=(data.minimum_piece_length),
+        minimum_joint_distance=(data.minimum_joint_distance),
+        minimum_row_width=(data.minimum_row_width),
         preferred_minimum_row_width=(data.preferred_minimum_row_width),
-        optimization_step=data.optimization_step,
+        optimization_step=(data.optimization_step),
         base_offset=data.base_offset,
-        row_width_offset=data.row_width_offset,
-        initial_pieces=initial_pieces,
+        row_width_offset=(data.row_width_offset),
+        initial_pieces=(initial_pieces),
     )
-
-    local_s = time.perf_counter() - local_started
 
     candidate = _candidate_from_evaluation(
         data=data,
@@ -171,12 +155,11 @@ def evaluate_candidate_full(
         pieces=pieces,
         row_offsets=row_offsets,
         timings={
-            "plan_generation_s": generation_s,
-            "local_optimization_s": local_s,
-            "local_variants": tested_variants,
+            "plan_generation_s": (generation_s),
+            "local_optimization_s": (time.perf_counter() - local_started),
+            "local_variants": (tested_variants),
         },
     )
-
     timings = dict(candidate.timings)
     timings["wall_clock_s"] = time.perf_counter() - total_started
 
