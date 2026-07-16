@@ -4,6 +4,7 @@ import time
 
 from shapely import wkb
 
+from .board_allocator import assign_physical_boards
 from .layout_solver import improve_problem_rows
 from .models import Candidate, CandidateInput
 from .planner import Piece, create_plan
@@ -42,6 +43,12 @@ def _candidate_from_evaluation(
         data.row_width_offset,
     )
 
+    allocated_pieces = assign_physical_boards(
+        pieces,
+        board_length=data.board_length,
+        orientation=data.orientation,
+    )
+
     timings = dict(timings)
     timings["final_scoring_s"] = time.perf_counter() - evaluation_started
     timings["total_s"] = sum(
@@ -54,7 +61,7 @@ def _candidate_from_evaluation(
         phase=phase,
         base_offset=data.base_offset,
         row_width_offset=data.row_width_offset,
-        pieces=pieces,
+        pieces=allocated_pieces,
         short_count=short_count,
         very_short_count=very_short_count,
         shortest_piece=shortest_piece,
