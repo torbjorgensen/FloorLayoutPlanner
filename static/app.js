@@ -1120,6 +1120,25 @@ function drawPieces(
     roomId = "",
     boardScope = `room:${roomId}`,
 ) {
+    const piecesByBoardRow = new Map();
+
+    for (const piece of pieces || []) {
+        const boardRowKey = [
+            scopedBoardIdentity(
+                piece,
+                boardScope,
+            ),
+            piece.row,
+        ].join(":");
+        const grouped =
+            piecesByBoardRow.get(boardRowKey) || [];
+        grouped.push(piece);
+        piecesByBoardRow.set(
+            boardRowKey,
+            grouped,
+        );
+    }
+
     for (const piece of pieces || []) {
         const isShort =
             minimumPieceLength > 0
@@ -1133,6 +1152,10 @@ function drawPieces(
             piece,
             boardScope,
         );
+        const boardRowKey = [
+            scopedIdentity,
+            piece.row,
+        ].join(":");
         const sameSource =
             hoveredPhysicalBoardId !== null
             && scopedIdentity
@@ -1181,11 +1204,11 @@ function drawPieces(
             screenHeight,
         );
 
-        context.strokeRect(
-            screenX,
-            screenY,
-            screenWidth,
-            screenHeight,
+        drawPieceOutline(
+            piece,
+            piecesByBoardRow.get(boardRowKey) || [],
+            x,
+            y,
         );
 
         renderedPieceHitboxes.push({
@@ -1200,6 +1223,223 @@ function drawPieces(
             minimumPieceLength,
         });
     }
+}
+
+
+function overlappingSegments(
+    start,
+    end,
+    segments,
+) {
+    const clipped = segments
+        .map(([segmentStart, segmentEnd]) => [
+            Math.max(start, segmentStart),
+            Math.min(end, segmentEnd),
+        ])
+        .filter(
+            ([segmentStart, segmentEnd]) =>
+                segmentEnd > segmentStart,
+        )
+        .sort(
+            ([startA], [startB]) =>
+                startA - startB,
+        );
+
+    if (!clipped.length) {
+        return [];
+    }
+
+    const merged = [clipped[0]];
+
+    for (const [segmentStart, segmentEnd] of clipped.slice(1)) {
+        const current =
+            merged[merged.length - 1];
+
+        if (segmentStart <= current[1]) {
+            current[1] = Math.max(
+                current[1],
+                segmentEnd,
+            );
+        } else {
+            merged.push([
+                segmentStart,
+                segmentEnd,
+            ]);
+        }
+    }
+
+    return merged;
+}
+
+
+function visibleSegments(
+    start,
+    end,
+    blocked,
+) {
+    const mergedBlocked =
+        overlappingSegments(
+            start,
+            end,
+            blocked,
+        );
+    const visible = [];
+    let cursor = start;
+
+    for (const [blockStart, blockEnd] of mergedBlocked) {
+        if (blockStart > cursor) {
+            visible.push([
+                cursor,
+                blockStart,
+            ]);
+        }
+        cursor = Math.max(cursor, blockEnd);
+    }
+
+    if (cursor < end) {
+        visible.push([cursor, end]);
+    }
+
+    return visible;
+}
+
+
+function drawVisibleLineSegments(
+    segments,
+    moveTo,
+    lineTo,
+) {
+    for (const [segmentStart, segmentEnd] of segments) {
+        context.beginPath();
+        moveTo(segmentStart);
+        lineTo(segmentEnd);
+        context.stroke();
+    }
+}
+
+
+function drawPieceOutline(
+    piece,
+    boardPieces,
+    x,
+    y,
+) {
+    const epsilon = 1e-6;
+    const topBlocked = [];
+    const bottomBlocked = [];
+    const leftBlocked = [];
+    const rightBlocked = [];
+
+    for (const otherPiece of boardPieces) {
+        if (otherPiece === piece) {
+            continue;
+        }
+
+        if (
+            Math.abs(otherPiece.y2 - piece.y1) <= epsilon
+        ) {
+            topBlocked.push([
+                otherPiece.x1,
+                otherPiece.x2,
+            ]);
+        }
+
+        if (
+            Math.abs(otherPiece.y1 - piece.y2) <= epsilon
+        ) {
+            bottomBlocked.push([
+                otherPiece.x1,
+                otherPiece.x2,
+            ]);
+        }
+
+        if (
+            Math.abs(otherPiece.x2 - piece.x1) <= epsilon
+        ) {
+            leftBlocked.push([
+                otherPiece.y1,
+                otherPiece.y2,
+            ]);
+        }
+
+        if (
+            Math.abs(otherPiece.x1 - piece.x2) <= epsilon
+        ) {
+            rightBlocked.push([
+                otherPiece.y1,
+                otherPiece.y2,
+            ]);
+        }
+    }
+
+    drawVisibleLineSegments(
+        visibleSegments(
+            piece.x1,
+            piece.x2,
+            topBlocked,
+        ),
+        segmentStart =>
+            context.moveTo(
+                x(segmentStart),
+                y(piece.y1),
+            ),
+        segmentEnd =>
+            context.lineTo(
+                x(segmentEnd),
+                y(piece.y1),
+            ),
+    );
+    drawVisibleLineSegments(
+        visibleSegments(
+            piece.x1,
+            piece.x2,
+            bottomBlocked,
+        ),
+        segmentStart =>
+            context.moveTo(
+                x(segmentStart),
+                y(piece.y2),
+            ),
+        segmentEnd =>
+            context.lineTo(
+                x(segmentEnd),
+                y(piece.y2),
+            ),
+    );
+    drawVisibleLineSegments(
+        visibleSegments(
+            piece.y1,
+            piece.y2,
+            leftBlocked,
+        ),
+        segmentStart =>
+            context.moveTo(
+                x(piece.x1),
+                y(segmentStart),
+            ),
+        segmentEnd =>
+            context.lineTo(
+                x(piece.x1),
+                y(segmentEnd),
+            ),
+    );
+    drawVisibleLineSegments(
+        visibleSegments(
+            piece.y1,
+            piece.y2,
+            rightBlocked,
+        ),
+        segmentStart =>
+            context.moveTo(
+                x(piece.x2),
+                y(segmentStart),
+            ),
+        segmentEnd =>
+            context.lineTo(
+                x(piece.x2),
+                y(segmentEnd),
+            ),
+    );
 }
 
 

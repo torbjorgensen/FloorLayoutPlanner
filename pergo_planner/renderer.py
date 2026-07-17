@@ -1,12 +1,41 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle as MatplotlibRectangle
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, box
+from shapely.ops import unary_union
 
 from .planner import Piece
+
+
+def _plot_piece_outline(
+    axis,
+    geometry,
+    *,
+    color: str,
+    linewidth: float,
+    zorder: int,
+) -> None:
+    if geometry.is_empty:
+        return
+
+    if isinstance(geometry, Polygon):
+        polygons = [geometry]
+    else:
+        polygons = list(geometry.geoms)
+
+    for polygon in polygons:
+        x_values, y_values = polygon.exterior.xy
+        axis.plot(
+            x_values,
+            y_values,
+            color=color,
+            linewidth=linewidth,
+            zorder=zorder,
+        )
 
 
 def plot_plan(
@@ -96,19 +125,35 @@ def plot_plan(
             zorder=4,
         )
 
-    for piece in pieces:
-        is_short = piece.length < minimum_piece_length
+    pieces_by_board = defaultdict(list)
 
-        axis.add_patch(
-            MatplotlibRectangle(
-                (piece.x1, piece.y1),
-                piece.x2 - piece.x1,
-                piece.y2 - piece.y1,
-                fill=False,
-                edgecolor="red" if is_short else "black",
-                linewidth=1.0 if is_short else 0.45,
-                zorder=2,
+    for piece in pieces:
+        pieces_by_board[
+            (
+                piece.physical_board_id,
+                piece.row,
             )
+        ].append(piece)
+
+    for board_pieces in pieces_by_board.values():
+        is_short = any(piece.length < minimum_piece_length for piece in board_pieces)
+        geometry = unary_union(
+            [
+                box(
+                    piece.x1,
+                    piece.y1,
+                    piece.x2,
+                    piece.y2,
+                )
+                for piece in board_pieces
+            ]
+        )
+        _plot_piece_outline(
+            axis,
+            geometry,
+            color="red" if is_short else "black",
+            linewidth=1.0 if is_short else 0.45,
+            zorder=2,
         )
 
     x_values, y_values = floor.exterior.xy
