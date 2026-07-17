@@ -10,7 +10,7 @@ def build_floor_polygon(rectangles: list[dict], expansion_gap: float) -> Polygon
     for index, rectangle in enumerate(rectangles, start=1):
         for key in ("x", "y", "width", "height"):
             if key not in rectangle:
-                raise ValueError(f"Rektangel {index} mangler '{key}'.")
+                raise ValueError(f"Rectangle {index} is missing '{key}'.")
 
         x = float(rectangle["x"])
         y = float(rectangle["y"])
@@ -18,7 +18,7 @@ def build_floor_polygon(rectangles: list[dict], expansion_gap: float) -> Polygon
         height = float(rectangle["height"])
 
         if width <= 0 or height <= 0:
-            raise ValueError(f"Rektangel {index} må ha positiv bredde og høyde.")
+            raise ValueError(f"Rectangle {index} must have positive width and height.")
 
         parts.append(box(x, y, x + width, y + height))
 
@@ -26,19 +26,22 @@ def build_floor_polygon(rectangles: list[dict], expansion_gap: float) -> Polygon
 
     if floor.geom_type != "Polygon":
         raise ValueError(
-            "Rektanglene må danne ett sammenhengende område. "
-            f"Resultatet ble {floor.geom_type}."
+            "The rectangles must form one connected area. "
+            f"The result was {floor.geom_type}."
         )
 
     if expansion_gap > 0:
         floor = floor.buffer(-expansion_gap, join_style=2)
 
         if floor.is_empty:
-            raise ValueError("Ekspansjonsfugen er så stor at gulvarealet forsvinner.")
+            raise ValueError(
+                "The expansion gap is so large that the floor area disappears."
+            )
 
         if floor.geom_type != "Polygon":
             raise ValueError(
-                "Ekspansjonsfugen delte gulvet i flere deler. Reduser expansion_gap_mm."
+                "The expansion gap split the floor into multiple parts. "
+                "Reduce expansion_gap_mm."
             )
 
     return floor

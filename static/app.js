@@ -244,37 +244,37 @@ function statsHtml(candidate, connection = null) {
 
     const rows = [
         [
-            "Forsøk",
+            "Attempt",
             candidate.attempt !== undefined
                 ? `${candidate.attempt} / ${candidate.total_attempts}`
                 : "–",
         ],
         [
-            "Startforskyvning",
+            "Start offset",
             `${formatNumber(candidate.base_offset)} mm`,
         ],
         [
-            "Første rad kappes",
+            "First row cut",
             `${formatNumber(candidate.row_width_offset)} mm`,
         ],
         [
-            "Korte biter",
+            "Short pieces",
             formatNumber(candidate.short_count),
         ],
         [
-            "Korteste bit",
+            "Shortest piece",
             `${formatNumber(candidate.shortest_piece)} mm`,
         ],
         [
-            "Skjøtebrudd",
+            "Joint violations",
             formatNumber(candidate.joint_violations),
         ],
         [
-            "Smaleste rad",
+            "Narrowest row",
             `${formatNumber(candidate.narrowest_row_width)} mm`,
         ],
         [
-            "Lokalt justerte rader",
+            "Locally adjusted rows",
             Object.keys(candidate.row_offsets || {}).length,
         ],
     ];
@@ -284,25 +284,25 @@ function statsHtml(candidate, connection = null) {
     if (cut) {
         rows.push(
             [
-                "Overgang",
+                "Transition",
                 cut.method === "natural_joint"
-                    ? "Naturlig skjøt"
-                    : "Saget ekspansjonsfuge",
+                    ? "Natural joint"
+                    : "Saw-cut expansion gap",
             ],
             [
-                "Fugeplassering",
+                "Gap position",
                 `${formatNumber(cut.position_mm)} mm`,
             ],
             [
-                "Fuge",
+                "Gap",
                 `${formatNumber(cut.gap_width_mm, 1)} mm`,
             ],
             [
-                "Berørte bord",
+                "Affected boards",
                 formatNumber(cut.cut_boards),
             ],
             [
-                "Korteste bit etter kutt",
+                "Shortest piece after cut",
                 `${formatNumber(cut.shortest_fragment_mm)} mm`,
             ],
         );
@@ -320,32 +320,32 @@ function profileHtml(profile) {
     const timings = profile.timing_totals || {};
 
     return metricRows([
-        ["Fase", profile.phase || "–"],
+        ["Phase", profile.phase || "–"],
         [
-            "Fremdrift",
+            "Progress",
             `${profile.completed || 0} / ${profile.total || 0}`,
         ],
         [
-            "Hastighet",
+            "Rate",
             `${formatNumber(profile.candidates_per_second, 1)}/s`,
         ],
-        ["Estimert igjen", formatSeconds(profile.eta_s)],
-        ["Brukt tid", formatSeconds(profile.elapsed_s)],
-        ["Prosesser", profile.workers || 0],
+        ["Estimated remaining", formatSeconds(profile.eta_s)],
+        ["Elapsed", formatSeconds(profile.elapsed_s)],
+        ["Workers", profile.workers || 0],
         [
-            "Grovsøk",
+            "Coarse search",
             `${profile.coarse_completed || 0} / ${profile.coarse_total || 0}`,
         ],
         [
-            "Finjustering",
+            "Refinement",
             `${profile.refine_completed || 0} / ${profile.refine_total || 0}`,
         ],
         [
-            "Plan-generering",
+            "Plan generation",
             formatSeconds(timings.plan_generation_s || 0),
         ],
         [
-            "Lokal optimalisering",
+            "Local optimization",
             formatSeconds(
                 timings.local_optimization_s || 0,
             ),
@@ -355,7 +355,7 @@ function profileHtml(profile) {
             formatSeconds(timings.final_scoring_s || 0),
         ],
         [
-            "Lokale varianter testet",
+            "Local variants tested",
             profile.local_variants || 0,
         ],
     ]);
@@ -370,7 +370,7 @@ function statusForRoom(room) {
 
     if (continuous?.error) {
         return {
-            text: `Feil i overgangsberegning: ${continuous.error}`,
+            text: `Transition calculation error: ${continuous.error}`,
             kind: "error",
         };
     }
@@ -380,13 +380,13 @@ function statusForRoom(room) {
         const etaText =
             progress.eta_s !== null
             && progress.eta_s !== undefined
-                ? ` – ca. ${formatSeconds(progress.eta_s)} igjen`
+                ? ` - about ${formatSeconds(progress.eta_s)} remaining`
                 : "";
 
         return {
             text:
-                `${progress.message || "Optimaliserer overgang"}`
-                + ` – ${formatNumber(percent, 1)} %`
+                `${progress.message || "Optimizing transition"}`
+                + ` - ${formatNumber(percent, 1)} %`
                 + etaText,
             kind: "running",
         };
@@ -397,7 +397,7 @@ function statusForRoom(room) {
         && hasSplitRoomPieces(connection)
     ) {
         return {
-            text: "Ferdig – gulvet er delt ved ekspansjonsfugen.",
+            text: "Finished - the floor is split at the expansion gap.",
             kind: "finished",
         };
     }
@@ -407,7 +407,7 @@ function statusForRoom(room) {
         && !hasSplitRoomPieces(connection)
     ) {
         return {
-            text: "Beregningen er ferdig, men mangler oppdelte rombiter.",
+            text: "Calculation finished, but split room pieces are missing.",
             kind: "warning",
         };
     }
@@ -421,27 +421,27 @@ function statusForRoom(room) {
 
     if (room.paused) {
         return {
-            text: "Pauset.",
+            text: "Paused.",
             kind: "paused",
         };
     }
 
     if (room.running) {
         return {
-            text: "Optimaliserer rommet …",
+            text: "Optimizing room …",
             kind: "running",
         };
     }
 
     if (room.finished) {
         return {
-            text: "Romoptimalisering ferdig. Venter på felles overgang.",
+            text: "Room optimization finished. Waiting for shared transition.",
             kind: "warning",
         };
     }
 
     return {
-        text: "Venter.",
+        text: "Waiting.",
         kind: "idle",
     };
 }
@@ -541,7 +541,7 @@ async function roomPost(action, payload = null) {
 
     if (!response.ok || result.ok === false) {
         throw new Error(
-            result.error || "Handlingen mislyktes.",
+            result.error || "Action failed.",
         );
     }
 
@@ -553,7 +553,7 @@ settingsForm.addEventListener(
     "submit",
     async event => {
         event.preventDefault();
-        validationMessage.textContent = "Arbeider …";
+        validationMessage.textContent = "Working …";
         validationMessage.className = "form-message";
 
         try {
@@ -563,7 +563,7 @@ settingsForm.addEventListener(
             );
 
             validationMessage.textContent =
-                "Innstillingene er brukt.";
+                "Settings applied.";
             validationMessage.className =
                 "form-message success";
 
@@ -600,7 +600,7 @@ document
             );
 
             validationMessage.textContent =
-                result?.message || "Lagret.";
+                result?.message || "Saved.";
             validationMessage.className =
                 "form-message success";
         } catch (error) {
@@ -633,7 +633,7 @@ document
             }
 
             validationMessage.textContent =
-                "Tilbakestilt til lagret JSON.";
+                "Reset to saved JSON.";
             validationMessage.className =
                 "form-message success";
         } catch (error) {
@@ -988,8 +988,8 @@ function drawTransition(connection, x, y, scale) {
 
     const label =
         cut.method === "natural_joint"
-            ? "Naturlig skjøt"
-            : `Sagspor – ${cut.cut_boards} bord`;
+            ? "Natural joint"
+            : `Saw cut - ${cut.cut_boards} boards`;
 
     context.fillText(
         label,
@@ -1285,20 +1285,20 @@ function hoverInfoHtml(hitbox) {
         || fragments.length > 1;
 
     return `
-        <strong>Fysisk bord ${scopedIdentity}</strong><br>
-        Rom: ${hitbox.roomId || "–"}<br>
-        Rad ${piece.row}, segment ${piece.segment}, bit ${piece.piece}<br>
-        Lengde: ${formatNumber(piece.length, 0)} mm<br>
-        Bredde: ${formatNumber(piece.width, 0)} mm<br>
-        Kapp: ${isCut ? "ja" : "nei"}<br>
-        Hele bordlengden: ${piece.is_full_length ? "ja" : "nei"}<br>
-        Synlige deler fra samme bord: ${fragments.length}<br>
-        Kappregel: maks ett tverrkapp og ett langsgående kapp<br>
+        <strong>Physical board ${scopedIdentity}</strong><br>
+        Room: ${hitbox.roomId || "–"}<br>
+        Row ${piece.row}, segment ${piece.segment}, piece ${piece.piece}<br>
+        Length: ${formatNumber(piece.length, 0)} mm<br>
+        Width: ${formatNumber(piece.width, 0)} mm<br>
+        Cut: ${isCut ? "yes" : "no"}<br>
+        Full board length: ${piece.is_full_length ? "yes" : "no"}<br>
+        Visible parts from the same board: ${fragments.length}<br>
+        Cut rule: at most one crosscut and one rip cut<br>
         ${crossesRooms
-            ? `Delt ved overgang mellom: ${roomIds.join(" / ")}<br>`
+            ? `Split across transition between: ${roomIds.join(" / ")}<br>`
             : ""}
         ${isShort
-            ? `<span style="color:#ffaaaa">Kortere enn minimum ${formatNumber(hitbox.minimumPieceLength)} mm</span>`
+            ? `<span style="color:#ffaaaa">Shorter than minimum ${formatNumber(hitbox.minimumPieceLength)} mm</span>`
             : ""}
     `;
 }
@@ -1444,7 +1444,7 @@ async function refreshState() {
         draw();
     } catch (error) {
         statusText.textContent =
-            "Kunne ikke kontakte serveren.";
+            "Could not reach the server.";
         statusText.dataset.state = "error";
     } finally {
         refreshInProgress = false;

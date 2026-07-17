@@ -52,7 +52,7 @@ def test_unknown_room_is_rejected() -> None:
     config = base_config()
     config["connections"][0]["room_b"] = "bod"
 
-    with pytest.raises(ValueError, match="ukjent rom"):
+    with pytest.raises(ValueError, match="unknown room"):
         parse_connections(config)
 
 
@@ -60,7 +60,7 @@ def test_room_cannot_connect_to_itself() -> None:
     config = base_config()
     config["connections"][0]["room_b"] = "stue"
 
-    with pytest.raises(ValueError, match="seg selv"):
+    with pytest.raises(ValueError, match="to itself"):
         parse_connections(config)
 
 
@@ -68,7 +68,7 @@ def test_duplicate_connection_id_is_rejected() -> None:
     config = base_config()
     config["connections"].append(dict(config["connections"][0]))
 
-    with pytest.raises(ValueError, match="Duplisert"):
+    with pytest.raises(ValueError, match="Duplicate"):
         parse_connections(config)
 
 
@@ -81,7 +81,7 @@ def test_zero_length_opening_is_rejected() -> None:
         "y2": 100,
     }
 
-    with pytest.raises(ValueError, match="endepunkter"):
+    with pytest.raises(ValueError, match="distinct endpoints"):
         parse_connections(config)
 
 
@@ -89,7 +89,7 @@ def test_invalid_connection_type_is_rejected() -> None:
     config = base_config()
     config["connections"][0]["type"] = "magic_portal"
 
-    with pytest.raises(ValueError, match="Ugyldig"):
+    with pytest.raises(ValueError, match="Invalid"):
         parse_connections(config)
 
 
@@ -173,5 +173,5 @@ def test_edge_clearance_must_leave_cut_area() -> None:
         }
     )
 
-    with pytest.raises(ValueError, match="gyldig område"):
+    with pytest.raises(ValueError, match="valid area"):
         parse_connections(config)

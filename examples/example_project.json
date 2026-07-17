@@ -1,5 +1,5 @@
 {
-  "project_name": "1. etasje",
+  "project_name": "1st Floor",
   "board": {
     "length_mm": 2050,
     "width_mm": 240
@@ -23,14 +23,14 @@
   "rooms": [
     {
       "id": "stue",
-      "name": "Stue",
+      "name": "Living Room",
       "origin": {
         "x": 0,
         "y": 0
       },
       "rectangles": [
         {
-          "name": "Hoveddel",
+          "name": "Main Area",
           "x": 0,
           "y": 0,
           "width": 4600,
@@ -41,7 +41,7 @@
           "fill_alpha": 0.12
         },
         {
-          "name": "Vindusdel",
+          "name": "Window Area",
           "x": 0,
           "y": 3600,
           "width": 3000,
@@ -52,7 +52,7 @@
           "fill_alpha": 0.12
         },
         {
-          "name": "TV-krok",
+          "name": "TV Nook",
           "x": 4600,
           "y": 2100,
           "width": 1500,
@@ -69,14 +69,14 @@
     },
     {
       "id": "kjokken",
-      "name": "Kjøkken",
+      "name": "Kitchen",
       "origin": {
         "x": 6200,
         "y": 0
       },
       "rectangles": [
         {
-          "name": "Kjøkken",
+          "name": "Kitchen",
           "x": 0,
           "y": 0,
           "width": 3300,
@@ -93,14 +93,14 @@
     },
     {
       "id": "gang",
-      "name": "Gang",
+      "name": "Hallway",
       "origin": {
         "x": 6200,
         "y": 3400
       },
       "rectangles": [
         {
-          "name": "Langdel",
+          "name": "Long Section",
           "x": 0,
           "y": 0,
           "width": 1400,
@@ -111,7 +111,7 @@
           "fill_alpha": 0.12
         },
         {
-          "name": "Kortdel",
+          "name": "Short Section",
           "x": 1400,
           "y": 2800,
           "width": 1700,

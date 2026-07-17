@@ -91,7 +91,7 @@ def rotate_polygon_for_orientation(
     if orientation == "vertical":
         return swap_xy_polygon(polygon), True
 
-    raise ValueError("orientation må være 'horizontal' eller 'vertical'.")
+    raise ValueError("orientation must be 'horizontal' or 'vertical'.")
 
 
 def unrotate_piece(piece: Piece, swapped: bool) -> Piece:
@@ -488,13 +488,13 @@ def create_plan(
     startmønstre uten at fysiske bord-ID-er tildeles i etterkant.
     """
     if board_length <= 0:
-        raise ValueError("board_length må være større enn 0.")
+        raise ValueError("board_length must be greater than 0.")
 
     if board_width <= 0:
-        raise ValueError("board_width må være større enn 0.")
+        raise ValueError("board_width must be greater than 0.")
 
     if saw_kerf_mm < 0:
-        raise ValueError("saw_kerf_mm kan ikke være negativ.")
+        raise ValueError("saw_kerf_mm cannot be negative.")
 
     work_floor, swapped = rotate_polygon_for_orientation(
         floor,

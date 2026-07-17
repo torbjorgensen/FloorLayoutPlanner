@@ -132,16 +132,16 @@ def assign_physical_boards(
     and continuous-layout IDs by connection.
     """
     if orientation not in {"horizontal", "vertical"}:
-        raise ValueError("orientation må være 'horizontal' eller 'vertical'.")
+        raise ValueError("orientation must be 'horizontal' or 'vertical'.")
 
     if board_length <= 0:
-        raise ValueError("board_length må være større enn 0.")
+        raise ValueError("board_length must be greater than 0.")
 
     if saw_kerf_mm < 0:
-        raise ValueError("saw_kerf_mm kan ikke være negativ.")
+        raise ValueError("saw_kerf_mm cannot be negative.")
 
     if saw_kerf_mm >= board_length:
-        raise ValueError("saw_kerf_mm må være mindre enn board_length.")
+        raise ValueError("saw_kerf_mm must be less than board_length.")
 
     if not pieces:
         return []

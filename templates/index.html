@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="nb">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,7 +13,7 @@
         <p>{{ project_name }}</p>
     </div>
     <div class="controls">
-        <button id="restartAllButton">Start alle rom på nytt</button>
+        <button id="restartAllButton">Restart all rooms</button>
     </div>
 </header>
 
@@ -24,89 +24,89 @@
 
     <aside>
         <div class="card">
-            <h2>Rom</h2>
+            <h2>Rooms</h2>
             <select id="roomSelect"></select>
         </div>
 
         <div class="card settings-card">
-            <h2>Innstillinger for <span id="selectedRoomName">rom</span></h2>
+            <h2>Settings for <span id="selectedRoomName">room</span></h2>
             <form id="settingsForm">
                 <label>
-                    Leggeretning
+                    Laying direction
                     <select name="orientation">
-                        <option value="horizontal">Horisontal</option>
-                        <option value="vertical">Vertikal</option>
+                        <option value="horizontal">Horizontal</option>
+                        <option value="vertical">Vertical</option>
                     </select>
                 </label>
 
                 <div class="two-columns">
                     <label>
-                        Ekspansjonsfuge (mm)
+                        Expansion gap (mm)
                         <input name="expansion_gap_mm" type="number" min="0" step="0.5">
                     </label>
                     <label>
-                        Minimum bit (mm)
+                        Minimum piece (mm)
                         <input name="minimum_piece_length_mm" type="number" min="1" step="1">
                     </label>
                     <label>
-                        Minimum skjøteavstand (mm)
+                        Minimum joint distance (mm)
                         <input name="minimum_joint_distance_mm" type="number" min="0" step="1">
                     </label>
                     <label>
-                        Forskyvning (mm)
+                        Stagger step (mm)
                         <input name="stagger_step_mm" type="number" min="1" step="1">
                     </label>
                 </div>
 
                 <details>
-                    <summary>Flere innstillinger</summary>
+                    <summary>More settings</summary>
                     <div class="two-columns details-grid">
                         <label>
-                            Bordlengde (mm)
+                            Board length (mm)
                             <input name="board_length_mm" type="number" min="1" step="1">
                         </label>
                         <label>
-                            Bordbredde (mm)
+                            Board width (mm)
                             <input name="board_width_mm" type="number" min="1" step="0.1">
                         </label>
                         <label>
-                            Søkeintervall (mm)
+                            Search step (mm)
                             <input name="optimization_step_mm" type="number" min="0.1" step="0.1">
                         </label>
                         <label>
-                            Radbredde-steg (mm)
+                            Row width step (mm)
                             <input name="row_width_optimization_step_mm" type="number" min="0.1" step="0.1">
                         </label>
                         <label>
-                            Absolutt min. radbredde (mm)
+                            Absolute min. row width (mm)
                             <input name="minimum_row_width_mm" type="number" min="1" step="1">
                         </label>
                         <label>
-                            Ønsket min. radbredde (mm)
+                            Preferred min. row width (mm)
                             <input name="preferred_minimum_row_width_mm" type="number" min="1" step="1">
                         </label>
                         <label>
-                            Prosesser
+                            Workers
                             <input name="optimizer_workers" type="number" min="1" step="1">
                         </label>
                         <label>
-                            Vis hver N. løsning
+                            Show every Nth result
                             <input name="preview_every_n_results" type="number" min="1" step="1">
                         </label>
                         <label>
-                            Lokaloptimaliser topp N
+                            Local optimize top N
                             <input name="local_optimize_top_n" type="number" min="1" step="1">
                         </label>
                         <label>
-                            Visning per ny beste (ms)
+                            Delay per new best (ms)
                             <input name="frame_delay_ms" type="number" min="0" step="1">
                         </label>
                         <label>
-                            Svinn (%)
+                            Waste (%)
                             <input name="waste_percent" type="number" min="0" step="0.1">
                         </label>
                         <label>
-                            Bord per pakke
+                            Boards per pack
                             <input name="boards_per_pack" type="number" min="1" step="1">
                         </label>
                     </div>
@@ -115,37 +115,37 @@
                 <div id="validationMessage" class="form-message"></div>
 
                 <div class="form-actions">
-                    <button type="submit" class="primary">Bruk og start rommet på nytt</button>
-                    <button type="button" id="saveConfigButton">Lagre rommet til JSON</button>
-                    <button type="button" id="resetConfigButton">Nullstill rommet</button>
+                    <button type="submit" class="primary">Apply and restart room</button>
+                    <button type="button" id="saveConfigButton">Save room to JSON</button>
+                    <button type="button" id="resetConfigButton">Reset room</button>
                 </div>
             </form>
         </div>
 
         <div class="card">
             <h2>Status</h2>
-            <p id="statusText">Kobler til …</p>
+            <p id="statusText">Connecting …</p>
             <progress id="progressBar" value="0" max="1"></progress>
             <div class="room-actions">
                 <button id="pauseButton">Pause</button>
-                <button id="resumeButton">Fortsett</button>
-                <button id="restartButton">Start rommet på nytt</button>
+                <button id="resumeButton">Resume</button>
+                <button id="restartButton">Restart room</button>
             </div>
         </div>
 
         <div class="card">
-            <h2>Beste løsning</h2>
+            <h2>Best solution</h2>
             <div id="bestStats">–</div>
         </div>
 
         <div class="card">
-            <h2>Profilering</h2>
+            <h2>Profiling</h2>
             <div id="profileStats">–</div>
         </div>
 
         <div class="card">
-            <h2>Utdata</h2>
-            <p id="outputFiles">Lages per rom når søket er ferdig.</p>
+            <h2>Output</h2>
+            <p id="outputFiles">Generated per room when the search finishes.</p>
         </div>
     </aside>
 </main>

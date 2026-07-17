@@ -44,7 +44,7 @@ class LiveOptimizerWindow:
         toolbar = ttk.Frame(self.root, padding=8)
         toolbar.pack(side=tk.TOP, fill=tk.X)
 
-        self.status_var = tk.StringVar(value="Starter optimalisering …")
+        self.status_var = tk.StringVar(value="Starting optimization …")
         ttk.Label(toolbar, textvariable=self.status_var).pack(side=tk.LEFT)
 
         self.pause_button = ttk.Button(
@@ -56,7 +56,7 @@ class LiveOptimizerWindow:
 
         ttk.Button(
             toolbar,
-            text="Stopp og bruk beste",
+            text="Stop and use best",
             command=self._stop,
         ).pack(side=tk.RIGHT)
 
@@ -80,15 +80,13 @@ class LiveOptimizerWindow:
         info.pack(side=tk.RIGHT, fill=tk.Y)
         info.pack_propagate(False)
 
-        ttk.Label(info, text="Nåværende løsning", font=("", 12, "bold")).pack(
-            anchor="w"
-        )
+        ttk.Label(info, text="Current solution", font=("", 12, "bold")).pack(anchor="w")
         self.current_var = tk.StringVar(value="–")
         ttk.Label(info, textvariable=self.current_var, justify=tk.LEFT).pack(
             anchor="w", pady=(4, 18)
         )
 
-        ttk.Label(info, text="Beste hittil", font=("", 12, "bold")).pack(anchor="w")
+        ttk.Label(info, text="Best so far", font=("", 12, "bold")).pack(anchor="w")
         self.best_var = tk.StringVar(value="–")
         ttk.Label(info, textvariable=self.best_var, justify=tk.LEFT).pack(
             anchor="w", pady=(4, 18)
@@ -97,9 +95,9 @@ class LiveOptimizerWindow:
         ttk.Label(
             info,
             text=(
-                "Rødt: bit under minimumslengden\n"
-                "Grønt: godkjent bit\n\n"
-                "Vinduet tester globale startforskyvninger."
+                "Red: piece below minimum length\n"
+                "Green: valid piece\n\n"
+                "The window tests global start offsets."
             ),
             justify=tk.LEFT,
         ).pack(anchor="w")
@@ -110,7 +108,7 @@ class LiveOptimizerWindow:
         if self.finished:
             return
         self.running = not self.running
-        self.pause_button.configure(text="Pause" if self.running else "Fortsett")
+        self.pause_button.configure(text="Pause" if self.running else "Resume")
         if self.running:
             self.root.after(1, self._next_candidate)
 
@@ -123,8 +121,8 @@ class LiveOptimizerWindow:
         self.running = False
         if self.best is not None:
             self.on_finished(self.best)
-        self.status_var.set("Stoppet – beste løsning er lagret.")
-        self.pause_button.configure(text="Lukk", command=self.root.destroy)
+        self.status_var.set("Stopped - best solution has been saved.")
+        self.pause_button.configure(text="Close", command=self.root.destroy)
 
     def _next_candidate(self) -> None:
         if self.finished or not self.running:
@@ -138,11 +136,11 @@ class LiveOptimizerWindow:
             if self.best is not None:
                 self.on_finished(self.best)
                 self.status_var.set(
-                    f"Ferdig – beste startforskyvning: {self.best.base_offset:.0f} mm"
+                    f"Finished - best start offset: {self.best.base_offset:.0f} mm"
                 )
             else:
-                self.status_var.set("Ferdig – fant ingen løsning.")
-            self.pause_button.configure(text="Lukk", command=self.root.destroy)
+                self.status_var.set("Finished - no solution found.")
+            self.pause_button.configure(text="Close", command=self.root.destroy)
             return
 
         self.current = candidate
@@ -154,8 +152,8 @@ class LiveOptimizerWindow:
         self.progress["value"] = candidate.attempt
 
         self.status_var.set(
-            f"Forsøk {candidate.attempt} av {candidate.total_attempts} "
-            f"– startforskyvning {candidate.base_offset:.0f} mm"
+            f"Attempt {candidate.attempt} of {candidate.total_attempts} "
+            f"- start offset {candidate.base_offset:.0f} mm"
         )
 
         self.current_var.set(self._candidate_text(candidate))
@@ -169,10 +167,10 @@ class LiveOptimizerWindow:
         if candidate is None:
             return "–"
         return (
-            f"Forskyvning: {candidate.base_offset:.0f} mm\n"
-            f"Korte biter: {candidate.short_count}\n"
+            f"Offset: {candidate.base_offset:.0f} mm\n"
+            f"Short pieces: {candidate.short_count}\n"
             f"Under 100 mm: {candidate.very_short_count}\n"
-            f"Korteste bit: {candidate.shortest_piece:.0f} mm"
+            f"Shortest piece: {candidate.shortest_piece:.0f} mm"
         )
 
     def _redraw(self) -> None:

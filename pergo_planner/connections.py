@@ -15,14 +15,14 @@ ALLOWED_CONNECTION_TYPES = {
 
 def _require_mapping(value: Any, field_name: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
-        raise ValueError(f"'{field_name}' må være et JSON-objekt.")
+        raise ValueError(f"'{field_name}' must be a JSON object.")
     return value
 
 
 def _require_string(mapping: Mapping[str, Any], field_name: str) -> str:
     value = mapping.get(field_name)
     if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"'{field_name}' må være en ikke-tom tekstverdi.")
+        raise ValueError(f"'{field_name}' must be a non-empty text value.")
     return value.strip()
 
 
@@ -30,7 +30,7 @@ def _require_float(mapping: Mapping[str, Any], field_name: str) -> float:
     try:
         return float(mapping[field_name])
     except (KeyError, TypeError, ValueError) as exc:
-        raise ValueError(f"'{field_name}' må være et tall.") from exc
+        raise ValueError(f"'{field_name}' must be a number.") from exc
 
 
 def _optional_bool(mapping: Mapping[str, Any], field_name: str, default: bool) -> bool:
@@ -38,7 +38,7 @@ def _optional_bool(mapping: Mapping[str, Any], field_name: str, default: bool) -
         return default
     value = mapping[field_name]
     if not isinstance(value, bool):
-        raise ValueError(f"'{field_name}' må være true eller false.")
+        raise ValueError(f"'{field_name}' must be true or false.")
     return value
 
 
@@ -50,7 +50,7 @@ def parse_opening(payload: Mapping[str, Any]) -> Opening:
         y2=_require_float(payload, "y2"),
     )
     if opening.x1 == opening.x2 and opening.y1 == opening.y2:
-        raise ValueError("En åpning må ha to forskjellige endepunkter.")
+        raise ValueError("An opening must have two distinct endpoints.")
     return opening
 
 
@@ -62,27 +62,29 @@ def parse_passage(payload: Mapping[str, Any]) -> Passage:
         height=_require_float(payload, "height"),
     )
     if passage.width <= 0 or passage.height <= 0:
-        raise ValueError("Passasjens bredde og høyde må være større enn 0.")
+        raise ValueError("Passage width and height must be greater than 0.")
     return passage
 
 
 def parse_cut_settings(payload: Mapping[str, Any], passage: Passage) -> CutSettings:
     axis = str(payload.get("axis", "")).lower()
     if axis not in {"x", "y"}:
-        raise ValueError("'cut.axis' må være 'x' eller 'y'.")
+        raise ValueError("'cut.axis' must be 'x' or 'y'.")
     try:
         gap = float(payload.get("gap_width_mm", 5.0))
         clearance = float(payload.get("edge_clearance_mm", 15.0))
         step = float(payload.get("search_step_mm", 5.0))
     except (TypeError, ValueError) as exc:
-        raise ValueError("Sagbredde, kantklaring og søkesteg må være tall.") from exc
+        raise ValueError(
+            "Saw kerf, edge clearance, and search step must be numbers."
+        ) from exc
     if gap <= 0 or step <= 0:
-        raise ValueError("Sagbredde og søkesteg må være større enn 0.")
+        raise ValueError("Saw kerf and search step must be greater than 0.")
     if clearance < 0:
-        raise ValueError("Kantklaringen kan ikke være negativ.")
+        raise ValueError("Edge clearance cannot be negative.")
     depth = passage.width if axis == "x" else passage.height
     if depth - 2 * clearance <= gap:
-        raise ValueError("Kantklaringen etterlater ikke et gyldig område for fugen.")
+        raise ValueError("Edge clearance does not leave a valid area for the gap.")
     return CutSettings(
         axis=axis,
         gap_width_mm=gap,
@@ -102,27 +104,25 @@ def parse_connection(
     if room_a not in room_ids or room_b not in room_ids:
         unknown = room_a if room_a not in room_ids else room_b
         raise ValueError(
-            f"Forbindelsen '{connection_id}' peker på ukjent rom '{unknown}'."
+            f"Connection '{connection_id}' references unknown room '{unknown}'."
         )
     if room_a == room_b:
         raise ValueError(
-            f"Forbindelsen '{connection_id}' kan ikke koble et rom til seg selv."
+            f"Connection '{connection_id}' cannot connect a room to itself."
         )
     if connection_type not in ALLOWED_CONNECTION_TYPES:
         allowed = ", ".join(sorted(ALLOWED_CONNECTION_TYPES))
         raise ValueError(
-            f"Ugyldig forbindelsestype '{connection_type}'. Tillatte verdier: {
-                allowed
-            }."
+            f"Invalid connection type '{connection_type}'. Allowed values: {allowed}."
         )
     opening = parse_opening(_require_mapping(payload.get("opening"), "opening"))
     align = _require_mapping(payload.get("align", {}), "align")
     try:
         weight = float(payload.get("weight", 1.0))
     except (TypeError, ValueError) as exc:
-        raise ValueError("'weight' må være et tall.") from exc
+        raise ValueError("'weight' must be a number.") from exc
     if weight <= 0:
-        raise ValueError("'weight' må være større enn 0.")
+        raise ValueError("'weight' must be greater than 0.")
     passage = None
     cut = None
     if connection_type == "continuous_then_cut":
@@ -147,10 +147,10 @@ def parse_connection(
 def parse_connections(config: Mapping[str, Any]) -> list[RoomConnection]:
     raw_connections = config.get("connections", [])
     if not isinstance(raw_connections, list):
-        raise ValueError("'connections' må være en liste.")
+        raise ValueError("'connections' must be a list.")
     rooms = config.get("rooms", [])
     if not isinstance(rooms, list):
-        raise ValueError("'rooms' må være en liste.")
+        raise ValueError("'rooms' must be a list.")
     room_ids = {
         str(room["id"]) for room in rooms if isinstance(room, Mapping) and "id" in room
     }
@@ -161,7 +161,7 @@ def parse_connections(config: Mapping[str, Any]) -> list[RoomConnection]:
             _require_mapping(raw, f"connections[{index}]"), room_ids=room_ids
         )
         if connection.connection_id in seen_ids:
-            raise ValueError(f"Duplisert forbindelse-id: {connection.connection_id}")
+            raise ValueError(f"Duplicate connection id: {connection.connection_id}")
         seen_ids.add(connection.connection_id)
         result.append(connection)
     return result

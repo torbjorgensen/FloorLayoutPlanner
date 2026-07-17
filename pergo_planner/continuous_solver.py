@@ -92,8 +92,8 @@ def build_continuous_floor(
 
     if raw.geom_type != "Polygon":
         raise ValueError(
-            f"Forbindelsen '{connection.connection_id}' lager ikke ett "
-            "sammenhengende gulvareal. Kontroller passage-koordinatene."
+            f"Connection '{connection.connection_id}' does not form one "
+            "connected floor area. Check the passage coordinates."
         )
 
     floor = raw.buffer(
@@ -102,7 +102,7 @@ def build_continuous_floor(
     )
 
     if floor.is_empty or floor.geom_type != "Polygon":
-        raise ValueError("Ekspansjonsfugen gjør det kontinuerlige gulvarealet ugyldig.")
+        raise ValueError("The expansion gap makes the continuous floor area invalid.")
 
     return floor
 
@@ -471,8 +471,8 @@ def split_candidate_at_cut(
 
     if side_a == side_b:
         raise ValueError(
-            f"Forbindelsen '{connection.connection_id}' plasserer begge "
-            "rom på samme side av sagsporet. Kontroller passage og cut.axis."
+            f"Connection '{connection.connection_id}' places both "
+            "rooms on the same side of the saw cut. Check passage and cut.axis."
         )
 
     clips = {

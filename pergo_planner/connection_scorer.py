@@ -39,7 +39,7 @@ def room_grid_phase(
     elif orientation == "vertical":
         grid_origin = origin_x + local_floor_min_x - candidate.row_width_offset
     else:
-        raise ValueError("orientation må være 'horizontal' eller 'vertical'.")
+        raise ValueError("orientation must be 'horizontal' or 'vertical'.")
 
     return grid_origin % board_width
 
@@ -60,7 +60,9 @@ def score_row_alignment(
     if orientation_a != orientation_b:
         return {
             "available": False,
-            "reason": "Rom med forskjellig leggeretning kan ikke radjusteres.",
+            "reason": (
+                "Rooms with different laying directions cannot have aligned rows."
+            ),
             "row_mismatch_mm": board_width,
             "row_alignment_percent": 0.0,
             "weighted_penalty": board_width * connection.weight,

@@ -100,7 +100,7 @@ class ContinuousState:
             "coarse_completed": 0,
             "refine_total": 0,
             "refine_completed": 0,
-            "message": "Venter",
+            "message": "Waiting",
         }
         self.generation = 0
 
@@ -162,26 +162,26 @@ class ProjectState:
 
 def load_config(path: Path) -> dict[str, Any]:
     if not path.exists():
-        raise FileNotFoundError(f"Fant ikke konfigurasjonsfilen: {path}")
+        raise FileNotFoundError(f"Could not find config file: {path}")
 
     try:
         with path.open("r", encoding="utf-8") as file:
             config = json.load(file)
     except json.JSONDecodeError as exc:
         raise ValueError(
-            f"Ugyldig JSON i {path}: linje {exc.lineno}, kolonne {exc.colno}: {exc.msg}"
+            f"Invalid JSON in {path}: line {exc.lineno}, column {exc.colno}: {exc.msg}"
         ) from exc
 
     # Backward compatibility: old one-room format.
     if "rooms" not in config and "rectangles" in config:
         config = {
-            "project_name": config.get("section_name", "Gulvprosjekt"),
+            "project_name": config.get("section_name", "Floor Project"),
             "board": config["board"],
             "settings": config.get("settings", {}),
             "rooms": [
                 {
                     "id": "room_1",
-                    "name": config.get("section_name", "Rom 1"),
+                    "name": config.get("section_name", "Room 1"),
                     "origin": {"x": 0, "y": 0},
                     "rectangles": config["rectangles"],
                     "settings": {},
@@ -192,21 +192,21 @@ def load_config(path: Path) -> dict[str, Any]:
     required = {"project_name", "rooms", "board"}
     missing = required - config.keys()
     if missing:
-        raise ValueError(f"Konfigurasjonen mangler felt: {sorted(missing)}")
+        raise ValueError(f"Configuration is missing fields: {sorted(missing)}")
 
     if not isinstance(config["rooms"], list) or not config["rooms"]:
-        raise ValueError("'rooms' må være en ikke-tom liste.")
+        raise ValueError("'rooms' must be a non-empty list.")
 
     seen_ids: set[str] = set()
     for room in config["rooms"]:
         for field in ("id", "name", "rectangles"):
             if field not in room:
-                raise ValueError(f"Et rom mangler feltet '{field}'.")
+                raise ValueError(f"A room is missing the '{field}' field.")
         if room["id"] in seen_ids:
-            raise ValueError(f"Duplisert rom-id: {room['id']}")
+            raise ValueError(f"Duplicate room id: {room['id']}")
         seen_ids.add(room["id"])
         if not room["rectangles"]:
-            raise ValueError(f"Rommet '{room['name']}' mangler rektangler.")
+            raise ValueError(f"Room '{room['name']}' is missing rectangles.")
 
     return config
 
@@ -265,14 +265,14 @@ def parse_float(payload: dict[str, Any], name: str) -> float:
     try:
         return float(payload[name])
     except (KeyError, TypeError, ValueError) as exc:
-        raise ValueError(f"'{name}' må være et tall.") from exc
+        raise ValueError(f"'{name}' must be a number.") from exc
 
 
 def parse_int(payload: dict[str, Any], name: str) -> int:
     try:
         return int(payload[name])
     except (KeyError, TypeError, ValueError) as exc:
-        raise ValueError(f"'{name}' må være et heltall.") from exc
+        raise ValueError(f"'{name}' must be an integer.") from exc
 
 
 def update_room_settings(
@@ -286,11 +286,11 @@ def update_room_settings(
         None,
     )
     if room is None:
-        raise ValueError(f"Ukjent rom-id: {room_id}")
+        raise ValueError(f"Unknown room id: {room_id}")
 
     orientation = str(payload.get("orientation", "")).lower()
     if orientation not in {"horizontal", "vertical"}:
-        raise ValueError("'orientation' må være 'horizontal' eller 'vertical'.")
+        raise ValueError("'orientation' must be 'horizontal' or 'vertical'.")
 
     values = {
         "expansion_gap_mm": parse_float(payload, "expansion_gap_mm"),
@@ -317,35 +317,35 @@ def update_room_settings(
     board_width = parse_float(payload, "board_width_mm")
 
     if values["expansion_gap_mm"] < 0:
-        raise ValueError("Ekspansjonsfugen kan ikke være negativ.")
+        raise ValueError("Expansion gap cannot be negative.")
     if values["minimum_piece_length_mm"] <= 0:
-        raise ValueError("Minimum bitlengde må være større enn 0.")
+        raise ValueError("Minimum piece length must be greater than 0.")
     if values["minimum_joint_distance_mm"] < 0:
-        raise ValueError("Minimum skjøteavstand kan ikke være negativ.")
+        raise ValueError("Minimum joint distance cannot be negative.")
     if not 0 < values["stagger_step_mm"] < board_length:
         raise ValueError(
-            "Forskyvningen må være større enn 0 og mindre enn bordlengden."
+            "Stagger step must be greater than 0 and less than the board length."
         )
     if values["optimization_step_mm"] <= 0:
-        raise ValueError("Optimaliseringssteg må være større enn 0.")
+        raise ValueError("Optimization step must be greater than 0.")
     if values["row_width_optimization_step_mm"] <= 0:
-        raise ValueError("Radbredde-steg må være større enn 0.")
+        raise ValueError("Row width step must be greater than 0.")
     if values["minimum_row_width_mm"] <= 0:
-        raise ValueError("Minimum radbredde må være større enn 0.")
+        raise ValueError("Minimum row width must be greater than 0.")
     if values["preferred_minimum_row_width_mm"] < values["minimum_row_width_mm"]:
         raise ValueError(
-            "Ønsket minimum radbredde kan ikke være mindre enn absolutt minimum."
+            "Preferred minimum row width cannot be smaller than the absolute minimum."
         )
     if values["optimizer_workers"] <= 0:
-        raise ValueError("Antall prosesser må være større enn 0.")
+        raise ValueError("Worker count must be greater than 0.")
     if values["preview_every_n_results"] <= 0:
-        raise ValueError("Visningsintervall må være større enn 0.")
+        raise ValueError("Preview interval must be greater than 0.")
     if values["local_optimize_top_n"] <= 0:
-        raise ValueError("Top-N må være større enn 0.")
+        raise ValueError("Top-N must be greater than 0.")
     if values["frame_delay_ms"] < 0:
-        raise ValueError("Visningsforsinkelsen kan ikke være negativ.")
+        raise ValueError("Frame delay cannot be negative.")
     if board_length <= 0 or board_width <= 0:
-        raise ValueError("Bordmål må være større enn 0.")
+        raise ValueError("Board dimensions must be greater than 0.")
 
     config["board"]["length_mm"] = board_length
     config["board"]["width_mm"] = board_width
@@ -439,17 +439,17 @@ def write_piece_csv(path: Path, candidate: Candidate) -> None:
         writer = csv.writer(file, delimiter=";")
         writer.writerow(
             [
-                "rad",
+                "row",
                 "segment",
-                "bit",
+                "piece",
                 "x1_mm",
                 "x2_mm",
                 "y1_mm",
                 "y2_mm",
-                "lengde_mm",
-                "bredde_mm",
-                "global_bordindeks",
-                "hel_bordlengde",
+                "length_mm",
+                "width_mm",
+                "global_board_index",
+                "full_board_length",
             ]
         )
         for piece in candidate.pieces:
@@ -465,13 +465,15 @@ def write_piece_csv(path: Path, candidate: Candidate) -> None:
                     round(piece.length, 1),
                     round(piece.width, 1),
                     piece.source_board_index,
-                    "ja" if piece.is_full_length else "nei",
+                    "yes" if piece.is_full_length else "no",
                 ]
             )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Floor Layout Planner med flere rom.")
+    parser = argparse.ArgumentParser(
+        description="Floor Layout Planner with multiple rooms."
+    )
     parser.add_argument("config", type=Path)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
@@ -491,7 +493,7 @@ def main() -> None:
             None,
         )
         if room is None:
-            raise ValueError(f"Ukjent rom-id: {room_id}")
+            raise ValueError(f"Unknown room id: {room_id}")
         return room
 
     def save_room_best(
@@ -612,7 +614,7 @@ def main() -> None:
                             )
                         )
 
-            # FASE 1: billig grovsøk uten lokal radoptimalisering.
+            # Phase 1: cheap coarse search without local row optimization.
             coarse_results: list[Candidate] = []
             coarse_completed = 0
 
@@ -663,7 +665,7 @@ def main() -> None:
                     candidate=candidate,
                 )
 
-            # Velg bare de beste globale kandidatene til dyr lokal forbedring.
+            # Select only the best global candidates for expensive local refinement.
             coarse_results.sort(key=lambda item: item.score)
             shortlisted = coarse_results[:top_n]
 
@@ -690,8 +692,8 @@ def main() -> None:
                 room_state.profile["phase"] = "refine"
                 room_state.profile["refine_total"] = len(refine_inputs)
 
-            # Nullstill best før refine, slik at den beste fullverdige
-            # kandidaten prioriteres over grovkandidatene.
+            # Reset best before refinement so the best fully refined
+            # candidate is preferred over coarse candidates.
             refined_best: Candidate | None = None
             refine_completed = 0
 
@@ -794,7 +796,8 @@ def main() -> None:
             settings_b = merged_settings(config_snapshot, room_b)
             if settings_a["orientation"] != settings_b["orientation"]:
                 raise ValueError(
-                    "continuous_then_cut krever samme leggeretning i begge rom."
+                    "continuous_then_cut requires the same laying "
+                    "direction in both rooms."
                 )
             orientation = settings_a["orientation"]
             board = config_snapshot["board"]
@@ -866,7 +869,7 @@ def main() -> None:
             update_continuous_progress(
                 phase="coarse",
                 completed=0,
-                message="Grovsøker overgang",
+                message="Coarse-searching transition",
                 coarse_completed=0,
                 refine_completed=0,
             )
@@ -896,12 +899,14 @@ def main() -> None:
                 update_continuous_progress(
                     phase="coarse",
                     completed=coarse_completed,
-                    message="Grovsøker overgang",
+                    message="Coarse-searching transition",
                     coarse_completed=coarse_completed,
                     refine_completed=0,
                 )
             if not coarse_ranked:
-                raise ValueError("Ingen kandidater ble generert for kontinuerlig gulv.")
+                raise ValueError(
+                    "No candidates were generated for the continuous floor."
+                )
             coarse_ranked.sort(key=lambda item: item[0])
             input_lookup = {
                 (item.base_offset, item.row_width_offset): item for item in inputs
@@ -915,7 +920,7 @@ def main() -> None:
             update_continuous_progress(
                 phase="refine",
                 completed=coarse_total,
-                message="Finjusterer overgang",
+                message="Refining transition",
                 coarse_completed=coarse_total,
                 refine_completed=0,
             )
@@ -944,7 +949,7 @@ def main() -> None:
                 update_continuous_progress(
                     phase="refine",
                     completed=coarse_total + refine_completed,
-                    message="Finjusterer overgang",
+                    message="Refining transition",
                     coarse_completed=coarse_total,
                     refine_completed=refine_completed,
                 )
@@ -952,7 +957,7 @@ def main() -> None:
             update_continuous_progress(
                 phase="cut",
                 completed=coarse_total + refine_total,
-                message="Velger ekspansjonsfuge",
+                message="Selecting expansion gap",
                 coarse_completed=coarse_total,
                 refine_completed=refine_total,
             )
@@ -979,7 +984,7 @@ def main() -> None:
                         "percent": 100.0,
                         "elapsed_s": time.perf_counter() - started_at,
                         "eta_s": 0.0,
-                        "message": "Ferdig",
+                        "message": "Finished",
                     }
                 )
         except Exception as exc:
@@ -1019,7 +1024,7 @@ def main() -> None:
             "coarse_completed": 0,
             "refine_total": 0,
             "refine_completed": 0,
-            "message": "Starter overgangsberegning",
+            "message": "Starting transition calculation",
         }
         threading.Thread(
             target=continuous_worker,
@@ -1218,7 +1223,7 @@ def main() -> None:
             return jsonify(
                 {
                     "ok": True,
-                    "message": f"Lagret til {args.config}",
+                    "message": f"Saved to {args.config}",
                     "settings": editable_room_settings(updated, room),
                 }
             )
@@ -1274,8 +1279,8 @@ def main() -> None:
     browser_host = "localhost" if args.host in {"0.0.0.0", "127.0.0.1"} else args.host
     url = f"http://{browser_host}:{args.port}"
 
-    print(f"\nFloor Layout Planner kjører på: {url}")
-    print("Trykk Ctrl+C for å stoppe serveren.")
+    print(f"\nFloor Layout Planner running at: {url}")
+    print("Press Ctrl+C to stop the server.")
 
     if not args.no_browser:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
@@ -1293,4 +1298,4 @@ if __name__ == "__main__":
     try:
         main()
     except (FileNotFoundError, ValueError) as exc:
-        raise SystemExit(f"FEIL: {exc}") from exc
+        raise SystemExit(f"ERROR: {exc}") from exc

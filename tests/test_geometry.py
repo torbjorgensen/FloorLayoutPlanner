@@ -32,7 +32,7 @@ def test_expansion_gap_reduces_rectangle_on_all_sides() -> None:
 
 
 def test_disconnected_rectangles_are_rejected() -> None:
-    with pytest.raises(ValueError, match="sammenhengende"):
+    with pytest.raises(ValueError, match="connected area"):
         build_floor_polygon(
             [
                 {"x": 0, "y": 0, "width": 1000, "height": 1000},
