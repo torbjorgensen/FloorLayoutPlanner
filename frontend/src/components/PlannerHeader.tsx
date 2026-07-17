@@ -1,5 +1,3 @@
-import Paper from "@mui/material/Paper";
-
 import {ActionButton} from "./ActionButton";
 import type {ConnectionStatus} from "../hooks/useProjectState";
 
@@ -23,9 +21,8 @@ export function PlannerHeader({
         disconnected: "Disconnected",
     }[connectionStatus];
     return (
-        <Paper className="topbar" component="header" elevation={0}>
+        <header className="topbar">
             <div className="brand-block">
-                <p className="eyebrow">Laying Engine Studio</p>
                 <h1>Floor Layout Planner</h1>
                 <p className="project-subtitle">
                     {projectName || "Waiting for backend state"}
@@ -48,6 +45,6 @@ export function PlannerHeader({
                     Restart all rooms
                 </ActionButton>
             </div>
-        </Paper>
+        </header>
     );
 }

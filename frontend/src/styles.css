@@ -23,11 +23,6 @@
     font-weight: 700;
 }
 
-/* Material UI owns control behavior; these selectors retain the planner skin. */
-.MuiButton-root.action-button {
-    font-family: inherit;
-}
-
 .topbar-note[data-status="reconnecting"],
 .topbar-note[data-status="disconnected"] {
     color: #8f351f;
@@ -38,4 +33,117 @@
 .topbar-note[data-status="disconnected"] .note-dot {
     background: #d96940;
     box-shadow: 0 0 0 6px rgba(217, 105, 64, 0.14);
+}
+
+/* Bootstrap prototype: compact, conventional application chrome. */
+:root {
+    --bs-primary: #0d6efd;
+    --bs-primary-rgb: 13, 110, 253;
+    --accent: #0d6efd;
+    --accent-strong: #084298;
+    --accent-warm: #fd7e14;
+    --ink: #212529;
+    --muted: #6c757d;
+    --panel: #fff;
+    --radius-xl: 10px;
+    --radius-lg: 8px;
+    --radius-md: 6px;
+    --shadow-soft: 0 1px 3px rgba(33, 37, 41, 0.12);
+}
+
+html {
+    background: #e9ecef;
+}
+
+.hero-panel,
+.canvas-card,
+.panel {
+    border: 1px solid #dee2e6;
+    background: #fff;
+    backdrop-filter: none;
+}
+
+.btn.action-button {
+    border-radius: 6px;
+    padding: 0.35rem 0.65rem;
+    font-weight: 600;
+    box-shadow: none;
+}
+
+.btn.action-button-primary {
+    border-color: #0d6efd;
+    color: #fff;
+    background: #0d6efd;
+}
+
+.btn.action-button-primary:hover {
+    border-color: #0a58ca;
+    background: #0b5ed7;
+}
+
+.room-tab.btn {
+    align-items: start;
+    color: #495057;
+    background: #fff;
+}
+
+.room-tab.btn.is-active {
+    border-color: #0d6efd;
+    color: #084298;
+    background: #e7f1ff;
+}
+
+.control-tabs .nav-link {
+    padding: 0.55rem 0.75rem;
+    color: #495057;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.control-tabs .nav-link.active {
+    color: #0d6efd;
+}
+
+@media (min-width: 1000px) {
+    .app-shell {
+        background: #e9ecef;
+    }
+
+    .topbar {
+        min-height: 58px;
+        border-radius: 8px;
+        background: #212529;
+        box-shadow: 0 2px 6px rgba(33, 37, 41, 0.22);
+    }
+
+    .brand-block h1 {
+        font-size: 1.2rem;
+    }
+
+    .panel-room-picker > .form-select {
+        display: none;
+    }
+
+    .control-tabs {
+        min-height: 38px;
+        border-radius: 6px 6px 0 0;
+    }
+
+    .canvas-overlay {
+        top: 10px;
+        right: 10px;
+        bottom: auto;
+        left: auto;
+        max-width: min(420px, calc(100% - 20px));
+        padding: 7px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 6px;
+        background: rgba(33, 37, 41, 0.82);
+        box-shadow: 0 2px 6px rgba(33, 37, 41, 0.18);
+    }
+
+    .canvas-overlay .overlay-copy-strong {
+        margin: 0;
+        font-size: 0.78rem;
+    }
 }

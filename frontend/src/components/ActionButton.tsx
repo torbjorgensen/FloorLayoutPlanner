@@ -1,4 +1,4 @@
-import Button, {type ButtonProps} from "@mui/material/Button";
+import Button, {type ButtonProps} from "react-bootstrap/Button";
 
 export function ActionButton({className = "", ...props}: ButtonProps) {
     const isPrimary = className.includes("action-button-primary");
@@ -7,9 +7,14 @@ export function ActionButton({className = "", ...props}: ButtonProps) {
     return (
         <Button
             className={className}
-            color={isStrong ? "secondary" : "primary"}
-            disableElevation
-            variant={isPrimary || isStrong ? "contained" : "outlined"}
+            size="sm"
+            variant={
+                isStrong
+                    ? "warning"
+                    : isPrimary
+                        ? "primary"
+                        : "outline-secondary"
+            }
             {...props}
         />
     );

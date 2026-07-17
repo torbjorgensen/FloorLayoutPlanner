@@ -970,7 +970,7 @@ summary {
     }
 
     .panel-room-picker .panel-header,
-    .panel-room-picker > .MuiFormControl-root {
+    .panel-room-picker > .form-select {
         display: none;
     }
 
@@ -994,13 +994,6 @@ summary {
         min-height: 40px;
         border-radius: 12px;
         background: rgba(255,255,255,.8);
-    }
-
-    .control-tabs .MuiTab-root {
-        min-height: 40px;
-        padding: 7px 10px;
-        font-size: .78rem;
-        font-weight: 800;
     }
 
     .control-panel-stack,
