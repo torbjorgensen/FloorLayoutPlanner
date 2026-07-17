@@ -1,4 +1,4 @@
-import {fireEvent, render, screen, waitFor} from "@testing-library/react";
+import {cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react";
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 
 import PlannerPage from "../pages/PlannerPage";
@@ -131,6 +131,7 @@ describe("planner board inspection interactions", () => {
     });
 
     afterEach(() => {
+        cleanup();
         vi.restoreAllMocks();
         vi.unstubAllGlobals();
     });
@@ -181,5 +182,25 @@ describe("planner board inspection interactions", () => {
         await waitFor(() => {
             expect(screen.queryByRole("status")).not.toBeInTheDocument();
         });
+    });
+
+    it("opens dismissible layout help and shows simulation feedback", async () => {
+        renderPlanner();
+
+        fireEvent.click(screen.getByRole("button", {name: "Show layout help"}));
+        expect(await screen.findByRole("heading", {name: "How to read the view"}))
+            .toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", {name: "Show layout help"}));
+        await waitFor(() => {
+            expect(screen.queryByRole("heading", {name: "How to read the view"}))
+                .not.toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole("button", {name: "Simulate"}));
+        expect(screen.getByRole("alert")).toHaveTextContent(
+            "No finished layout is available to simulate yet.",
+        );
+        fireEvent.click(screen.getByRole("button", {name: "Close alert"}));
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 });

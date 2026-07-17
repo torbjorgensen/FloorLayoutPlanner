@@ -90,7 +90,6 @@ select {
 .project-subtitle,
 .hero-status,
 .topbar-note,
-.overlay-copy,
 .status-text,
 .output-path,
 .select-label {
@@ -437,35 +436,10 @@ select {
     font-weight: 700;
 }
 
-.canvas-overlay {
-    position: absolute;
-    left: 18px;
-    bottom: 18px;
-    max-width: 280px;
-    padding: 14px 16px;
-    border-radius: 18px;
-    background: rgba(25, 37, 31, 0.82);
-    color: rgba(255, 250, 245, 0.92);
-    box-shadow: var(--shadow-deep);
-}
-
-.overlay-title {
-    margin: 0 0 8px;
-    font-size: 0.9rem;
-    font-weight: 700;
-}
-
-.overlay-copy {
-    margin: 0;
-    color: rgba(255, 250, 245, 0.72);
-    font-size: 0.87rem;
-    line-height: 1.5;
-}
-
-.overlay-copy-strong {
-    margin-top: 10px;
-    color: rgba(255, 250, 245, 0.92);
-    font-weight: 700;
+.simulation-feedback {
+    margin: 0 0 10px;
+    padding: 8px 42px 8px 12px;
+    font-size: 0.86rem;
 }
 
 .room-tab-grid {
@@ -767,11 +741,6 @@ summary {
         height: 58vh;
     }
 
-    .canvas-overlay {
-        position: static;
-        max-width: none;
-        margin-top: 12px;
-    }
 }
 
 /* Compact desktop workspace */
@@ -954,16 +923,6 @@ summary {
         width: 100%;
         height: 100%;
         min-height: 340px;
-    }
-
-    .canvas-overlay {
-        max-width: 250px;
-        padding: 10px 12px;
-    }
-
-    .canvas-overlay .overlay-copy:not(.overlay-copy-strong),
-    .canvas-overlay .overlay-title {
-        display: none;
     }
 
     .control-column {

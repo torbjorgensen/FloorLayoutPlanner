@@ -1,5 +1,8 @@
 import {useEffect, useMemo, useRef, useState} from "react";
+import Alert from "react-bootstrap/Alert";
 import Nav from "react-bootstrap/Nav";
+import OverlayTrigger from "react-bootstrap/OverlayTrigger";
+import Popover from "react-bootstrap/Popover";
 import {ActionButton} from "../components/ActionButton";
 import {BoardInspection} from "../components/BoardInspection";
 import {MetricRows} from "../components/MetricRows";
@@ -617,6 +620,11 @@ function PlannerPage({projectId}: PlannerPageProps) {
         : connection?.continuous?.finished
             ? 100
             : Math.max(1, Number(candidate?.total_attempts || 1));
+    const simulationFeedbackVariant = simulationStatus.startsWith("No ")
+        ? "warning"
+        : simulationStatus.startsWith("Simulation finished")
+            ? "success"
+            : "info";
 
     return (
         <div className="app-shell">
@@ -672,6 +680,32 @@ function PlannerPage({projectId}: PlannerPageProps) {
                             </div>
                             <div className="canvas-header-tools">
                                 <div className="simulation-controls">
+                                    <OverlayTrigger
+                                        overlay={(
+                                            <Popover id="layoutHelp">
+                                                <Popover.Header as="h3">How to read the view</Popover.Header>
+                                                <Popover.Body>
+                                                    Board labels show placement order and laying direction.
+                                                    Hover a board for details, or click or tap it to pin
+                                                    every piece cut from the same physical board. Use the
+                                                    arrow keys to inspect pieces and Escape to clear a pin.
+                                                    Simulation rehearses the finished layout one placement
+                                                    at a time.
+                                                </Popover.Body>
+                                            </Popover>
+                                        )}
+                                        placement="bottom"
+                                        rootClose
+                                        trigger="click"
+                                    >
+                                        <ActionButton
+                                            aria-label="Show layout help"
+                                            className="action-button"
+                                            type="button"
+                                        >
+                                            Help
+                                        </ActionButton>
+                                    </OverlayTrigger>
                                     <label className="simulation-label" htmlFor="simulateDelayInput">
                                         Step delay
                                     </label>
@@ -716,6 +750,17 @@ function PlannerPage({projectId}: PlannerPageProps) {
                                 </div>
                             </div>
                         </div>
+                        {simulationStatus !== "Simulation idle." && (
+                            <Alert
+                                className="simulation-feedback"
+                                dismissible
+                                onClose={() => stopSimulation()}
+                                role={simulationFeedbackVariant === "warning" ? "alert" : "status"}
+                                variant={simulationFeedbackVariant}
+                            >
+                                {simulationStatus}
+                            </Alert>
+                        )}
                         <div className="canvas-stage">
                             <canvas
                                 id="floorCanvas"
@@ -746,19 +791,6 @@ function PlannerPage({projectId}: PlannerPageProps) {
                                     pinned={inspectionPinned}
                                 />
                             )}
-                            <div className="canvas-overlay">
-                                <p className="overlay-title">How to read the view</p>
-                                <p className="overlay-copy">
-                                    Each placement shows board order and laying direction.
-                                    Use simulation to rehearse the finished layout.
-                                </p>
-                                <p
-                                    id="simulationStatus"
-                                    className="overlay-copy overlay-copy-strong"
-                                >
-                                    {simulationStatus}
-                                </p>
-                            </div>
                         </div>
                     </section>
                 </section>
