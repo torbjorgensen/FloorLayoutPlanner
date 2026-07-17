@@ -68,17 +68,93 @@ The production stack builds the React frontend, serves it through Nginx, and
 proxies `/api`, `/socket.io`, and `/healthz` to a private backend container.
 Only the Nginx port is exposed on the host.
 
-Create a writable output directory, then start the stack:
+> **Access control:** the planner does not currently provide authentication.
+> Do not expose it directly to the public internet. Put it behind a trusted
+> VPN, an authenticated reverse proxy, or another access-controlled network.
+
+### Docker host quick start
+
+On the Docker host, clone or update the repository and switch to the release
+you want to deploy. Then create persistent host directories:
+
+```bash
+mkdir -p /srv/floor-layout-planner/data
+mkdir -p /srv/floor-layout-planner/output
+```
+
+Copy a starting project configuration to a persistent location. It is only
+used to seed an empty database; normal project edits are stored in SQLite:
+
+```bash
+cp stue_project.json /srv/floor-layout-planner/project.json
+```
+
+Save the deployment settings in `.env` so upgrades and operational commands
+continue to address the same persistent paths. Use the UID and GID of your
+Docker-host account:
+
+```bash
+cat > .env <<EOF
+PLANNER_CONFIG_FILE=/srv/floor-layout-planner/project.json
+PLANNER_OUTPUT_DIR=/srv/floor-layout-planner/output
+PLANNER_DATA_DIR=/srv/floor-layout-planner/data
+PLANNER_UID=$(id -u)
+PLANNER_GID=$(id -g)
+PLANNER_PORT=8080
+SOCKETIO_ALLOWED_ORIGINS=
+EOF
+
+docker compose up --build --detach --remove-orphans
+```
+
+Open `http://DOCKER_HOST:8080`. Confirm that both containers and the public
+health endpoint are ready:
+
+```bash
+docker compose ps
+curl --fail http://127.0.0.1:8080/healthz
+```
+
+The database is stored at
+`/srv/floor-layout-planner/data/planner.db`, and generated project artifacts
+are stored below `/srv/floor-layout-planner/data/outputs`. These paths survive
+container replacement. The separately mounted output directory preserves
+legacy file-based output.
+
+If `/srv` is not suitable, replace these paths with any persistent directories
+that are writable by `PLANNER_UID` and `PLANNER_GID`. A UID/GID mismatch will
+prevent SQLite from opening the database.
+
+### Updating the deployment
+
+Back up the persistent data, update the checkout to the desired release, and
+rebuild the containers:
+
+```bash
+docker compose stop
+tar -C /srv -czf "floor-layout-planner-$(date +%F-%H%M).tar.gz" floor-layout-planner
+docker compose start
+
+git fetch --tags
+git checkout YOUR_RELEASE_TAG
+docker compose up --build --detach --remove-orphans
+curl --fail http://127.0.0.1:8080/healthz
+```
+
+Database migrations run automatically when the backend starts. Keep the backup
+until the updated planner has opened existing projects successfully.
+
+### Default local paths
+
+For a local test deployment, the shorter default command remains available:
 
 ```bash
 mkdir -p planner_output planner_data
-docker compose up --build -d
+PLANNER_UID=$(id -u) PLANNER_GID=$(id -g) docker compose up --build -d
 ```
 
-Open `http://localhost:8080`. By default, `stue_project.json` is mounted as the
-project configuration and generated files are stored in `planner_output/`, so
-both survive container replacement. Database-backed projects introduced by the
-project-management work are stored in `planner_data/planner.db`.
+This mounts `stue_project.json`, `planner_output/`, and `planner_data/` from the
+repository checkout and publishes the planner on port 8080.
 
 Use a different project, output directory, or public port with environment
 variables:
@@ -119,8 +195,10 @@ docker compose logs --follow
 # Rebuild and replace containers after updating the checkout.
 docker compose up --build --detach --remove-orphans
 
-# Back up the persisted project and generated output.
+# Back up the persisted project and generated output consistently.
+docker compose stop
 tar -czf planner-backup.tar.gz stue_project.json planner_output/ planner_data/
+docker compose start
 ```
 
 Restore by stopping the stack, extracting the archive into the same paths, and
