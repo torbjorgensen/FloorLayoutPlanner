@@ -1,6 +1,5 @@
 import {useEffect, useMemo, useRef, useState} from "react";
-import Tab from "@mui/material/Tab";
-import Tabs from "@mui/material/Tabs";
+import Nav from "react-bootstrap/Nav";
 import {ActionButton} from "../components/ActionButton";
 import {BoardInspection} from "../components/BoardInspection";
 import {MetricRows} from "../components/MetricRows";
@@ -719,16 +718,29 @@ function PlannerPage() {
                         selectedRoomId={selectedRoomId}
                         onSelectRoom={selectRoom}
                     />
-                    <Tabs
+                    <Nav
                         aria-label="Planner controls"
                         className="control-tabs"
-                        onChange={(_event, value: number) => setActivePanel(value)}
-                        value={activePanel}
-                        variant="fullWidth"
+                        fill
+                        variant="tabs"
                     >
-                        <Tab label="Overview" />
-                        <Tab label="Room settings" />
-                    </Tabs>
+                        <Nav.Item>
+                            <Nav.Link
+                                active={activePanel === 0}
+                                onClick={() => setActivePanel(0)}
+                            >
+                                Overview
+                            </Nav.Link>
+                        </Nav.Item>
+                        <Nav.Item>
+                            <Nav.Link
+                                active={activePanel === 1}
+                                onClick={() => setActivePanel(1)}
+                            >
+                                Room settings
+                            </Nav.Link>
+                        </Nav.Item>
+                    </Nav>
                     {activePanel === 0 && (
                         <div className="control-panel-stack">
 

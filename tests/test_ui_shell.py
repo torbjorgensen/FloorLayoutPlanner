@@ -16,7 +16,9 @@ def test_frontend_package_declares_react_vite_toolchain() -> None:
     assert package["scripts"]["dev"] == "vite"
     assert package["scripts"]["build"] == "tsc -b && vite build"
     assert package["dependencies"]["react"]
-    assert package["dependencies"]["@mui/material"]
+    assert package["dependencies"]["bootstrap"]
+    assert package["dependencies"]["react-bootstrap"]
+    assert "@mui/material" not in package["dependencies"]
     assert package["dependencies"]["socket.io-client"]
     assert package["devDependencies"]["vite"]
     assert package["devDependencies"]["vitest"]
