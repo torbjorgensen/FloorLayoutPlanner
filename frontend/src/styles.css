@@ -137,6 +137,24 @@ html {
     background: #e9ecef;
 }
 
+.editor-page { max-width: 1440px; margin: 0 auto; padding: 2rem; }
+.editor-header, .rooms-heading, .room-editor-heading, .editor-savebar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.editor-header { margin-bottom: 1.5rem; }
+.editor-actions { display: flex; align-items: center; gap: .75rem; }
+.dirty-indicator { color: var(--bs-success); font-weight: 600; }
+.dirty-indicator.dirty { color: var(--bs-warning-text-emphasis); }
+.editor-card { margin-bottom: 1.25rem; box-shadow: 0 .15rem .6rem rgba(20, 31, 45, .06); }
+.editor-grid { display: grid; gap: 1rem; }
+.editor-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.optimizer-grid { margin-top: 1rem; }
+.rooms-heading { margin: 2rem 0 1rem; }
+.rooms-heading p { margin: 0; }
+.room-editor-heading { margin-bottom: 1rem; }
+.room-editor h3 { font-size: 1rem; margin: 1.25rem 0 .5rem; }
+.rectangle-row { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr) auto; gap: .75rem; align-items: end; margin-bottom: .75rem; }
+.editor-savebar { position: sticky; bottom: 0; justify-content: flex-end; padding: 1rem; margin-top: 1rem; background: rgba(255, 255, 255, .96); border-top: 1px solid var(--bs-border-color); }
+@media (max-width: 900px) { .editor-grid.four, .rectangle-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .editor-header { align-items: flex-start; flex-direction: column; } }
+
 .projects-header {
     display: flex;
     align-items: center;

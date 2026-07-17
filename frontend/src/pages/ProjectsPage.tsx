@@ -260,9 +260,14 @@ function ProjectsPage() {
                                 </dl>
                                 <div className="project-card-actions">
                                     {!project.archived && (
-                                        <Link className="btn btn-primary btn-sm" to={`/projects/${project.id}`}>
-                                            Open planner
-                                        </Link>
+                                        <>
+                                            <Link className="btn btn-primary btn-sm" to={`/projects/${project.id}`}>
+                                                Open planner
+                                            </Link>
+                                            <Link className="btn btn-outline-primary btn-sm" to={`/projects/${project.id}/edit`}>
+                                                Edit layout
+                                            </Link>
+                                        </>
                                     )}
                                     <Button onClick={() => openNameDialog({kind: "rename", project})} size="sm" variant="outline-secondary">Rename</Button>
                                     <Button onClick={() => openNameDialog({kind: "duplicate", project})} size="sm" variant="outline-secondary">Duplicate</Button>

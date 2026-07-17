@@ -97,21 +97,78 @@ def normalize_and_validate_config(config: dict[str, Any]) -> dict[str, Any]:
     if missing:
         raise ValueError(f"Configuration is missing fields: {sorted(missing)}")
 
+    if (
+        not isinstance(config["project_name"], str)
+        or not config["project_name"].strip()
+    ):
+        raise ValueError("'project_name' must be a non-empty string.")
+
+    board = config["board"]
+    if not isinstance(board, dict):
+        raise ValueError("'board' must be an object.")
+    for field in ("length_mm", "width_mm"):
+        value = _finite_number(board.get(field), f"board.{field}")
+        if value <= 0:
+            raise ValueError(f"'board.{field}' must be greater than 0.")
+    kerf = _finite_number(board.get("saw_kerf_mm", 3.2), "board.saw_kerf_mm")
+    if kerf < 0 or kerf >= float(board["length_mm"]):
+        raise ValueError(
+            "'board.saw_kerf_mm' must be non-negative and less than board length."
+        )
+
     if not isinstance(config["rooms"], list) or not config["rooms"]:
         raise ValueError("'rooms' must be a non-empty list.")
 
     seen_ids: set[str] = set()
     for room in config["rooms"]:
+        if not isinstance(room, dict):
+            raise ValueError("Every room must be an object.")
         for field in ("id", "name", "rectangles"):
             if field not in room:
                 raise ValueError(f"A room is missing the '{field}' field.")
+        if not isinstance(room["id"], str) or not room["id"].strip():
+            raise ValueError("Every room must have a non-empty string id.")
+        if not isinstance(room["name"], str) or not room["name"].strip():
+            raise ValueError(f"Room '{room['id']}' must have a non-empty name.")
         if room["id"] in seen_ids:
             raise ValueError(f"Duplicate room id: {room['id']}")
         seen_ids.add(room["id"])
-        if not room["rectangles"]:
+        if not isinstance(room["rectangles"], list) or not room["rectangles"]:
             raise ValueError(f"Room '{room['name']}' is missing rectangles.")
+        origin = room.get("origin", {"x": 0, "y": 0})
+        if not isinstance(origin, dict):
+            raise ValueError(f"Room '{room['name']}' origin must be an object.")
+        _finite_number(origin.get("x", 0), f"{room['name']} origin.x")
+        _finite_number(origin.get("y", 0), f"{room['name']} origin.y")
+        for index, rectangle in enumerate(room["rectangles"], start=1):
+            if not isinstance(rectangle, dict):
+                raise ValueError(
+                    f"Room '{room['name']}' rectangle {index} must be an object."
+                )
+            _finite_number(rectangle.get("x"), f"{room['name']} rectangle {index} x")
+            _finite_number(rectangle.get("y"), f"{room['name']} rectangle {index} y")
+            for field in ("width", "height"):
+                value = _finite_number(
+                    rectangle.get(field),
+                    f"{room['name']} rectangle {index} {field}",
+                )
+                if value <= 0:
+                    raise ValueError(
+                        f"Room '{room['name']}' rectangle {index} {field} "
+                        "must be greater than 0."
+                    )
 
     return config
+
+
+def _finite_number(value: Any, name: str) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"'{name}' must be a number.") from exc
+    if parsed != parsed or parsed in {float("inf"), float("-inf")}:
+        raise ValueError(f"'{name}' must be a finite number.")
+    return parsed
 
 
 def merged_settings(
