@@ -123,6 +123,7 @@ def create_worker_manager(
                 row_width_optimization_step=float(
                     settings["row_width_optimization_step_mm"]
                 ),
+                saw_kerf_mm=float(board.get("saw_kerf_mm", 3.2)),
             )
 
             workers = int(settings["optimizer_workers"])
@@ -402,6 +403,7 @@ def create_worker_manager(
                 row_width_optimization_step=float(
                     settings_a["row_width_optimization_step_mm"]
                 ),
+                saw_kerf_mm=float(board.get("saw_kerf_mm", 3.2)),
             )
             workers = int(settings_a["optimizer_workers"])
             top_n = min(int(settings_a["local_optimize_top_n"]), len(inputs))

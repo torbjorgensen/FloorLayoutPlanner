@@ -150,6 +150,66 @@ def test_row_that_gets_longer_can_still_use_previous_offcut() -> None:
     assert row_one_end.physical_board_id == row_two_start.physical_board_id
 
 
+def test_oversized_offcut_can_be_trimmed_for_shorter_next_row() -> None:
+    floor = Polygon(
+        [
+            (0, 0),
+            (1000, 0),
+            (1000, 240),
+            (800, 240),
+            (800, 480),
+            (0, 480),
+        ]
+    )
+
+    pieces = create_plan(
+        floor=floor,
+        board_length=2050,
+        board_width=240,
+        orientation="horizontal",
+        stagger_step=700,
+        minimum_piece_length=300,
+        base_offset=0,
+        saw_kerf_mm=SAW_KERF_MM,
+    )
+    rows = pieces_by_row(pieces)
+    row_one = max(rows[1], key=lambda piece: piece.x2)
+    row_two = min(rows[2], key=lambda piece: piece.x1)
+
+    assert row_one.length == pytest.approx(1000)
+    assert row_two.length == pytest.approx(800)
+    assert row_one.physical_board_id == row_two.physical_board_id
+
+
+def test_offcut_cannot_be_trimmed_when_kerf_does_not_fit() -> None:
+    floor = Polygon(
+        [
+            (0, 0),
+            (1000, 0),
+            (1000, 240),
+            (1035, 240),
+            (1035, 480),
+            (0, 480),
+        ]
+    )
+
+    pieces = create_plan(
+        floor=floor,
+        board_length=2050,
+        board_width=240,
+        orientation="horizontal",
+        stagger_step=700,
+        minimum_piece_length=300,
+        base_offset=0,
+        saw_kerf_mm=10,
+    )
+    rows = pieces_by_row(pieces)
+    row_one = max(rows[1], key=lambda piece: piece.x2)
+    row_two = min(rows[2], key=lambda piece: piece.x1)
+
+    assert row_one.physical_board_id != row_two.physical_board_id
+
+
 def test_partial_width_geometry_change_keeps_board_identity() -> None:
     floor = Polygon(
         [
