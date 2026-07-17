@@ -43,3 +43,12 @@ output/
 *.png
 *.csv
 *.tsbuildinfo
+
+# Local database persistence
+planner_data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*

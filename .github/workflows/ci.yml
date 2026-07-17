@@ -114,11 +114,14 @@ jobs:
           set -euo pipefail
           smoke_dir="$RUNNER_TEMP/planner-production"
           mkdir -p "$smoke_dir/output"
+          mkdir -p "$smoke_dir/data"
           cp examples/example_project.json "$smoke_dir/project.json"
           chmod 666 "$smoke_dir/project.json"
           chmod 777 "$smoke_dir/output"
+          chmod 777 "$smoke_dir/data"
           export PLANNER_CONFIG_FILE="$smoke_dir/project.json"
           export PLANNER_OUTPUT_DIR="$smoke_dir/output"
+          export PLANNER_DATA_DIR="$smoke_dir/data"
           export PLANNER_PORT=8080
           export PLANNER_UID="$(id -u)"
           export PLANNER_GID="$(id -g)"

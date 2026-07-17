@@ -26,6 +26,7 @@ DEFAULT_SETTINGS = {
 
 
 def load_config(path: Path) -> dict[str, Any]:
+    """Load, normalize, and validate a project configuration file."""
     if not path.exists():
         raise FileNotFoundError(f"Could not find config file: {path}")
 
@@ -36,6 +37,13 @@ def load_config(path: Path) -> dict[str, Any]:
         raise ValueError(
             f"Invalid JSON in {path}: line {exc.lineno}, column {exc.colno}: {exc.msg}"
         ) from exc
+
+    return normalize_and_validate_config(config)
+
+
+def normalize_and_validate_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Return a validated configuration, upgrading the legacy one-room shape."""
+    config = copy.deepcopy(config)
 
     # Backward compatibility: old one-room format.
     if "rooms" not in config and "rectangles" in config:

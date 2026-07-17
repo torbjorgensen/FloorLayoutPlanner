@@ -6,5 +6,6 @@
 frontend/dist
 frontend/node_modules
 planner_output
+planner_data
 *_output
 *.prof
