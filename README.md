@@ -125,6 +125,23 @@ without changing the normal startup command:
 PLANNER_DATABASE_URL=sqlite:///planner.db tools/dev.sh stue_project.json
 ```
 
+## Project API
+
+Database-backed project management is available under `/api/projects`:
+
+- `GET /api/projects` lists active projects; add `?include_archived=true` to
+  include archived projects.
+- `POST /api/projects` and `POST /api/projects/import` validate and create a
+  portable JSON project.
+- `GET` and `PATCH /api/projects/<id>` open or update a project.
+- `POST /api/projects/<id>/duplicate`, `/archive`, and `/restore` manage its
+  lifecycle.
+- `GET /api/projects/<id>/export` downloads the portable JSON configuration.
+- `DELETE /api/projects/<id>` permanently removes an already archived project.
+
+Every mutation of an existing project requires its current `expected_version`.
+Stale updates return HTTP 409 instead of overwriting newer changes.
+
 ## Frontend checks
 
 ```bash

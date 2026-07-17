@@ -10,6 +10,7 @@ from flask_socketio import SocketIO
 
 from pergo_planner.storage import ProjectService, initialize_project_storage
 from pergo_planner.web.config import load_config
+from pergo_planner.web.project_routes import register_project_routes
 from pergo_planner.web.routes import register_command_routes
 from pergo_planner.web.serialization import build_state_payload
 from pergo_planner.web.sockets import (
@@ -26,7 +27,7 @@ class PlannerApplication:
     socketio: SocketIO
     state: ProjectState
     output_dir: Path
-    projects: ProjectService | None
+    projects: ProjectService
     start_all: Callable[[dict[str, Any]], None]
     shutdown: Callable[[], None]
 
@@ -37,14 +38,18 @@ def create_app(
     start_workers: bool = True,
     database_url: str | None = None,
 ) -> PlannerApplication:
-    """Create the planner runtime with optional database-backed project storage."""
+    """Create the planner runtime and its database-backed project catalog."""
     initial_config = load_config(config_path)
-    configured_database_url = database_url or os.environ.get("PLANNER_DATABASE_URL")
-    projects = (
-        initialize_project_storage(configured_database_url)
-        if configured_database_url
-        else None
+    configured_database_url = (
+        database_url
+        or os.environ.get("PLANNER_DATABASE_URL")
+        or _default_database_url(config_path)
     )
+    projects = initialize_project_storage(configured_database_url)
+    if not projects.list(include_archived=True):
+        # Preserve the existing CLI contract while making its JSON project
+        # immediately available to the new database-backed project catalog.
+        projects.create(initial_config)
     state = ProjectState(initial_config)
     app = Flask(__name__)
     frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -119,8 +124,7 @@ def create_app(
         """Release timers and optimizer coordinators owned by this app."""
         state_emitter.close()
         workers.shutdown()
-        if projects is not None:
-            projects.close()
+        projects.close()
 
     register_command_routes(
         app,
@@ -131,6 +135,7 @@ def create_app(
         start_all=start_all,
         notify=notify_state_changed,
     )
+    register_project_routes(app, projects)
 
     if start_workers:
         start_all(initial_config)
@@ -144,3 +149,10 @@ def create_app(
         start_all=start_all,
         shutdown=shutdown,
     )
+
+
+def _default_database_url(config_path: Path) -> str:
+    """Locate ignored SQLite storage beside the current project configuration."""
+    data_dir = config_path.resolve().parent / "planner_data"
+    data_dir.mkdir(exist_ok=True)
+    return f"sqlite:///{data_dir / 'planner.db'}"

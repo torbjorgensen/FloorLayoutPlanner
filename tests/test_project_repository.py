@@ -141,6 +141,17 @@ def test_delete_requires_current_version(service: ProjectService) -> None:
         service.get(created.id)
 
 
+def test_active_project_cannot_be_permanently_deleted(
+    service: ProjectService,
+) -> None:
+    created = service.create(project())
+
+    with pytest.raises(ValueError, match="Archive"):
+        service.delete(created.id, expected_version=created.version)
+
+    assert service.get(created.id) == created
+
+
 def test_service_validation_runs_before_database_insert(
     database_url: str,
 ) -> None:
