@@ -5,6 +5,7 @@ import time
 from shapely import wkb
 
 from .layout_solver import improve_problem_rows
+from .material import material_metrics, material_score
 from .models import Candidate, CandidateInput
 from .planner import Piece, create_plan
 from .scorer import evaluate_pieces
@@ -48,6 +49,8 @@ def _candidate_from_evaluation(
     timings["total_s"] = sum(
         value for key, value in timings.items() if key.endswith("_s")
     )
+    metrics = material_metrics(pieces, data.board_length, data.saw_kerf_mm)
+    score = (*score, *material_score(metrics))
 
     return Candidate(
         attempt=data.attempt,
@@ -66,6 +69,7 @@ def _candidate_from_evaluation(
         row_offsets=row_offsets,
         score=score,
         timings=timings,
+        material_metrics=metrics,
     )
 
 
@@ -86,6 +90,7 @@ def evaluate_candidate_fast(
         minimum_piece_length=(data.minimum_piece_length),
         base_offset=data.base_offset,
         row_width_offset=(data.row_width_offset),
+        saw_kerf_mm=data.saw_kerf_mm,
     )
 
     candidate = _candidate_from_evaluation(
@@ -128,6 +133,7 @@ def evaluate_candidate_full(
         minimum_piece_length=(data.minimum_piece_length),
         base_offset=data.base_offset,
         row_width_offset=(data.row_width_offset),
+        saw_kerf_mm=data.saw_kerf_mm,
     )
     generation_s = time.perf_counter() - generation_started
     local_started = time.perf_counter()
@@ -149,6 +155,7 @@ def evaluate_candidate_full(
         minimum_row_width=(data.minimum_row_width),
         preferred_minimum_row_width=(data.preferred_minimum_row_width),
         optimization_step=(data.optimization_step),
+        saw_kerf_mm=data.saw_kerf_mm,
         base_offset=data.base_offset,
         row_width_offset=(data.row_width_offset),
         initial_pieces=(initial_pieces),

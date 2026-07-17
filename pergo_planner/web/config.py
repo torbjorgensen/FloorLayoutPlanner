@@ -105,6 +105,9 @@ def editable_room_settings(
         "orientation": settings["orientation"],
         "start_corner": settings["start_corner"],
         "expansion_gap_mm": float(settings["expansion_gap_mm"]),
+        # Keep legacy JSON projects valid while kerf moves into board-level
+        # configuration, where every room shares the same cutting process.
+        "saw_kerf_mm": float(board.get("saw_kerf_mm", 3.2)),
         "minimum_piece_length_mm": float(settings["minimum_piece_length_mm"]),
         "minimum_joint_distance_mm": float(settings["minimum_joint_distance_mm"]),
         "stagger_step_mm": float(settings["stagger_step_mm"]),
@@ -192,9 +195,12 @@ def update_room_settings(
 
     board_length = parse_float(payload, "board_length_mm")
     board_width = parse_float(payload, "board_width_mm")
+    saw_kerf = parse_float(payload, "saw_kerf_mm")
 
     if values["expansion_gap_mm"] < 0:
         raise ValueError("Expansion gap cannot be negative.")
+    if not 0 <= saw_kerf < board_length:
+        raise ValueError("Saw kerf must be non-negative and less than board length.")
     if values["minimum_piece_length_mm"] <= 0:
         raise ValueError("Minimum piece length must be greater than 0.")
     if values["minimum_joint_distance_mm"] < 0:
@@ -226,6 +232,7 @@ def update_room_settings(
 
     config["board"]["length_mm"] = board_length
     config["board"]["width_mm"] = board_width
+    config["board"]["saw_kerf_mm"] = saw_kerf
 
     room.setdefault("settings", {})
     room["settings"].update(

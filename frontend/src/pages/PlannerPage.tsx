@@ -814,6 +814,22 @@ function PlannerPage() {
                                         "Narrowest row",
                                         `${formatNumber(candidate.narrowest_row_width)} mm`,
                                     ],
+                                    [
+                                        "Physical boards",
+                                        formatNumber(candidate.material_metrics?.new_boards),
+                                    ],
+                                    [
+                                        "Exact offcut reuses",
+                                        formatNumber(candidate.material_metrics?.exact_offcut_reuses),
+                                    ],
+                                    [
+                                        "Trimmed offcut reuses",
+                                        formatNumber(candidate.material_metrics?.trimmed_offcut_reuses),
+                                    ],
+                                    [
+                                        "Saw cuts",
+                                        formatNumber(candidate.material_metrics?.cuts),
+                                    ],
                                 ]} />
                                 : "–"}
                         </div>
@@ -932,6 +948,7 @@ function PlannerPage() {
                                     {[
                                         ["board_length_mm", "Board length (mm)"],
                                         ["board_width_mm", "Board width (mm)"],
+                                        ["saw_kerf_mm", "Saw kerf (mm)"],
                                         ["optimization_step_mm", "Search step (mm)"],
                                         ["row_width_optimization_step_mm", "Row width step (mm)"],
                                         ["minimum_row_width_mm", "Absolute min. row width (mm)"],
@@ -952,6 +969,7 @@ function PlannerPage() {
                                                     ...current,
                                                     [name]: event.target.value,
                                                 }))}
+                                                step="any"
                                                 type="number"
                                                 value={formState[name] || ""}
                                             />

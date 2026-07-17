@@ -115,5 +115,6 @@ class ProjectState:
             "row_offsets": candidate.row_offsets,
             "phase": candidate.phase,
             "timings": candidate.timings,
+            "material_metrics": candidate.material_metrics,
             "pieces": [self.piece_payload(piece) for piece in candidate.pieces],
         }

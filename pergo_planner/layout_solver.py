@@ -34,6 +34,7 @@ def improve_problem_rows(
     minimum_row_width: float,
     preferred_minimum_row_width: float,
     optimization_step: float,
+    saw_kerf_mm: float,
     base_offset: float,
     row_width_offset: float,
     initial_pieces: list[Piece],
@@ -92,6 +93,7 @@ def improve_problem_rows(
                     base_offset=base_offset,
                     row_offsets=trial_offsets,
                     row_width_offset=row_width_offset,
+                    saw_kerf_mm=saw_kerf_mm,
                 )
 
                 *_, trial_score = evaluate_pieces(

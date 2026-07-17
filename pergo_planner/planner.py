@@ -474,13 +474,25 @@ def _place_lane_boards(
         number = next(board_numbers)
         return f"B{number:05d}", number
 
-    if (
+    # Exact reuse consumes the complete offcut. Trimming an oversized offcut
+    # requires enough material for both the installed starter and a second
+    # blade kerf; otherwise the requested starter cannot physically be cut.
+    can_use_exact_offcut = (
         starter_offcut is not None
         and starter_offcut.length >= minimum_piece_length
         and starter_offcut.length <= remaining + _EPSILON
         and abs(starter_offcut.lane_start - lane_start) <= 1.0
-    ):
-        usable = starter_offcut.length
+    )
+    can_trim_offcut = (
+        starter_offcut is not None
+        and remaining >= minimum_piece_length
+        and starter_offcut.length >= remaining + saw_kerf_mm - _EPSILON
+        and abs(starter_offcut.lane_start - lane_start) <= 1.0
+    )
+
+    if can_use_exact_offcut or can_trim_offcut:
+        assert starter_offcut is not None
+        usable = min(starter_offcut.length, remaining)
         placements.append(
             BoardPlacement(
                 x1=cursor,

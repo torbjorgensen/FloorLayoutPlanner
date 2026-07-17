@@ -27,6 +27,7 @@ const state: ProjectState = {
                 orientation: "horizontal",
                 start_corner: "upper_left",
                 expansion_gap_mm: 5,
+                saw_kerf_mm: 3.2,
                 minimum_piece_length_mm: 300,
                 minimum_joint_distance_mm: 300,
                 stagger_step_mm: 700,
