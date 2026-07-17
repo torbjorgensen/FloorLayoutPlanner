@@ -1121,6 +1121,8 @@ function drawPieces(
     boardScope = `room:${roomId}`,
 ) {
     const piecesByBoardRow = new Map();
+    const boardRowAnchors = new Map();
+    const room = roomById(roomId);
 
     for (const piece of pieces || []) {
         const boardRowKey = [
@@ -1137,6 +1139,19 @@ function drawPieces(
             boardRowKey,
             grouped,
         );
+
+        const anchor =
+            boardRowAnchors.get(boardRowKey);
+
+        if (!anchor || piece.length * piece.width > anchor.area) {
+            boardRowAnchors.set(
+                boardRowKey,
+                {
+                    piece,
+                    area: piece.length * piece.width,
+                },
+            );
+        }
     }
 
     for (const piece of pieces || []) {
@@ -1222,6 +1237,16 @@ function drawPieces(
             y2: screenY + screenHeight,
             minimumPieceLength,
         });
+    }
+
+    for (const [boardRowKey, anchor] of boardRowAnchors.entries()) {
+        drawBoardAnnotation(
+            anchor.piece,
+            room,
+            x,
+            y,
+            scale,
+        );
     }
 }
 
@@ -1440,6 +1465,185 @@ function drawPieceOutline(
                 y(segmentEnd),
             ),
     );
+}
+
+
+function layingVector(room) {
+    const orientation =
+        room?.settings?.orientation
+        || "horizontal";
+    const startCorner =
+        room?.settings?.start_corner
+        || "upper_left";
+
+    if (orientation === "horizontal") {
+        return startCorner.endsWith("right")
+            ? {x: -1, y: 0}
+            : {x: 1, y: 0};
+    }
+
+    return startCorner.startsWith("lower")
+        ? {x: 0, y: -1}
+        : {x: 0, y: 1};
+}
+
+
+function boardOrderLabel(piece) {
+    const boardIndex = Number(piece.source_board_index);
+
+    if (Number.isFinite(boardIndex)) {
+        return `${boardIndex}`;
+    }
+
+    const match = String(piece.physical_board_id || "").match(/(\d+)/);
+
+    return match ? match[1] : "?";
+}
+
+
+function drawArrowHead(
+    tipX,
+    tipY,
+    directionX,
+    directionY,
+    size,
+) {
+    const perpendicularX = -directionY;
+    const perpendicularY = directionX;
+    const baseX = tipX - directionX * size;
+    const baseY = tipY - directionY * size;
+
+    context.beginPath();
+    context.moveTo(tipX, tipY);
+    context.lineTo(
+        baseX + perpendicularX * size * 0.7,
+        baseY + perpendicularY * size * 0.7,
+    );
+    context.lineTo(
+        baseX - perpendicularX * size * 0.7,
+        baseY - perpendicularY * size * 0.7,
+    );
+    context.closePath();
+    context.fill();
+}
+
+
+function drawBoardAnnotation(
+    piece,
+    room,
+    x,
+    y,
+    scale,
+) {
+    const screenX = x(piece.x1);
+    const screenY = y(piece.y1);
+    const screenWidth =
+        (piece.x2 - piece.x1) * scale;
+    const screenHeight =
+        (piece.y2 - piece.y1) * scale;
+
+    if (
+        screenWidth < 34
+        || screenHeight < 16
+    ) {
+        return;
+    }
+
+    const direction = layingVector(room);
+    const label = boardOrderLabel(piece);
+    const horizontal =
+        Math.abs(direction.x) > 0;
+    const centerX = screenX + screenWidth / 2;
+    const centerY = screenY + screenHeight / 2;
+    const labelFontSize = Math.max(
+        10,
+        Math.min(
+            14,
+            Math.floor(
+                Math.min(screenWidth, screenHeight) * 0.32,
+            ),
+        ),
+    );
+
+    context.save();
+    context.font = `600 ${labelFontSize}px sans-serif`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+
+    const textMetrics = context.measureText(label);
+    const textWidth = textMetrics.width;
+    const chipWidth = textWidth + 14;
+    const chipHeight = labelFontSize + 8;
+
+    if (
+        chipWidth > screenWidth - 8
+        || chipHeight > screenHeight - 6
+    ) {
+        context.restore();
+        return;
+    }
+
+    const chipX = centerX - chipWidth / 2;
+    const chipY = centerY - chipHeight / 2;
+    const arrowClearance = chipWidth / 2 + 10;
+    const availableLength = horizontal
+        ? screenWidth / 2 - arrowClearance
+        : screenHeight / 2 - arrowClearance;
+    const arrowLength = Math.max(
+        0,
+        Math.min(availableLength, 22),
+    );
+
+    context.fillStyle = "rgba(255, 255, 255, 0.82)";
+    context.strokeStyle = "rgba(17, 24, 39, 0.72)";
+    context.lineWidth = 1;
+    context.beginPath();
+    context.roundRect(
+        chipX,
+        chipY,
+        chipWidth,
+        chipHeight,
+        6,
+    );
+    context.fill();
+    context.stroke();
+
+    context.fillStyle = "rgba(17, 24, 39, 0.92)";
+    context.fillText(
+        label,
+        centerX,
+        centerY,
+    );
+
+    if (arrowLength >= 10) {
+        const arrowStartX = centerX + direction.x * (chipWidth / 2 + 4);
+        const arrowStartY = centerY + direction.y * (chipHeight / 2 + 4);
+        const arrowEndX = arrowStartX + direction.x * arrowLength;
+        const arrowEndY = arrowStartY + direction.y * arrowLength;
+
+        context.strokeStyle = "rgba(17, 24, 39, 0.9)";
+        context.fillStyle = "rgba(17, 24, 39, 0.9)";
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.moveTo(
+            arrowStartX,
+            arrowStartY,
+        );
+        context.lineTo(
+            arrowEndX,
+            arrowEndY,
+        );
+        context.stroke();
+        drawArrowHead(
+            arrowEndX,
+            arrowEndY,
+            direction.x,
+            direction.y,
+            5,
+        );
+    }
+
+    context.restore();
 }
 
 
