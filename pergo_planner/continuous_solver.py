@@ -15,6 +15,7 @@ from shapely.ops import unary_union
 from .geometry import build_floor_polygon
 from .models import Candidate, CutPlan, RoomConnection
 from .planner import Piece
+from .validation import length_meets_minimum
 
 _GEOMETRY_LIMIT = 1_000_000_000.0
 _EPSILON = 1e-6
@@ -233,7 +234,7 @@ def evaluate_cut_position(
             shortest = min(shortest, length)
             narrowest = min(narrowest, width)
 
-            if length < minimum_piece_length:
+            if not length_meets_minimum(length, minimum_piece_length):
                 short += 1
 
             if length < min(100.0, minimum_piece_length):
@@ -315,7 +316,12 @@ def best_cut_plan(
         )
     ]
 
-    return min(plans, key=lambda plan: plan.score)
+    # A valid expansion-gap position always outranks one that creates an
+    # undersized fragment, regardless of advisory row-width penalties.
+    return min(
+        plans,
+        key=lambda plan: (plan.short_fragments > 0, plan.score),
+    )
 
 
 def continuous_candidate_score(
