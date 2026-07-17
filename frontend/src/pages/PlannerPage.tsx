@@ -5,6 +5,7 @@ import {ActionButton} from "../components/ActionButton";
 import {MetricRows} from "../components/MetricRows";
 import {PlannerHeader} from "../components/PlannerHeader";
 import {RoomNavigator} from "../components/RoomNavigator";
+import {useProjectState} from "../hooks/useProjectState";
 
 import {renderFloorPlan} from "../lib/canvasRenderer";
 import {
@@ -25,7 +26,6 @@ import type {
     RoomStatePayload,
 } from "../types";
 
-const POLL_INTERVAL_MS = 500;
 
 type FormState = Record<string, string>;
 
@@ -139,7 +139,7 @@ function statusForRoom(
 
 function PlannerPage() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const [state, setState] = useState<ProjectState | null>(null);
+    const {state, connectionStatus, connectionError} = useProjectState();
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
     const [activePanel, setActivePanel] = useState(0);
     const [formState, setFormState] = useState<FormState>({});
@@ -154,43 +154,16 @@ function PlannerPage() {
     );
 
     useEffect(() => {
-        let cancelled = false;
-
-        async function refreshState() {
-            try {
-                const response = await fetch("/api/state");
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const payload = await response.json() as ProjectState;
-                if (cancelled) {
-                    return;
-                }
-
-                setState(payload);
-                setSelectedRoomId(previous =>
-                    previous
-                    && payload.rooms.some(room => room.id === previous)
-                        ? previous
-                        : payload.rooms[0]?.id || null,
-                );
-            } catch (_error) {
-                if (!cancelled) {
-                    setValidationMessage("Could not reach the server.");
-                }
-            }
+        if (!state) {
+            return;
         }
 
-        void refreshState();
-        const timer = window.setInterval(refreshState, POLL_INTERVAL_MS);
-
-        return () => {
-            cancelled = true;
-            window.clearInterval(timer);
-        };
-    }, []);
+        setSelectedRoomId(previous =>
+            previous && state.rooms.some(room => room.id === previous)
+                ? previous
+                : state.rooms[0]?.id || null,
+        );
+    }, [state]);
 
     useEffect(() => {
         if (selectedRoom) {
@@ -494,6 +467,8 @@ function PlannerPage() {
         <div className="app-shell">
             <PlannerHeader
                 projectName={state?.project_name}
+                connectionStatus={connectionStatus}
+                connectionError={connectionError}
                 onRestartAll={() => void handleRestartAll()}
             />
 

@@ -10,9 +10,10 @@ import threading
 import time
 import webbrowser
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from flask import Flask, jsonify, redirect, request, send_from_directory
+from flask_socketio import SocketIO
 
 from pergo_planner.connections import connection_payload, parse_connections
 from pergo_planner.continuous_solver import (
@@ -30,6 +31,80 @@ from pergo_planner.optimizer import (
     parallel_refine_generator,
 )
 from pergo_planner.renderer import plot_plan
+
+STATE_EVENT = "project_state"
+
+
+class StateUpdateEmitter:
+    """Broadcast project snapshots at a bounded rate when state changes."""
+
+    def __init__(
+        self,
+        socketio: SocketIO,
+        payload_factory: Callable[[], dict[str, Any]],
+        minimum_interval_s: float = 0.2,
+    ) -> None:
+        self.socketio = socketio
+        self.payload_factory = payload_factory
+        self.minimum_interval_s = minimum_interval_s
+        self.lock = threading.Lock()
+        self.clients: set[str] = set()
+        self.last_emit_at = 0.0
+        self.timer: threading.Timer | None = None
+
+    def connect(self, session_id: str) -> None:
+        with self.lock:
+            self.clients.add(session_id)
+        self.socketio.emit(STATE_EVENT, self.payload_factory(), to=session_id)
+
+    def disconnect(self, session_id: str) -> None:
+        with self.lock:
+            self.clients.discard(session_id)
+
+    def notify(self) -> None:
+        emit_now = False
+        with self.lock:
+            if not self.clients or self.timer is not None:
+                return
+
+            elapsed = time.monotonic() - self.last_emit_at
+            delay = max(0.0, self.minimum_interval_s - elapsed)
+            if delay == 0.0:
+                self.last_emit_at = time.monotonic()
+                emit_now = True
+            else:
+                self.timer = threading.Timer(delay, self._flush)
+                self.timer.daemon = True
+                self.timer.start()
+
+        if emit_now:
+            self._emit()
+
+    def _flush(self) -> None:
+        with self.lock:
+            self.timer = None
+            if not self.clients:
+                return
+            self.last_emit_at = time.monotonic()
+        self._emit()
+
+    def _emit(self) -> None:
+        self.socketio.emit(STATE_EVENT, self.payload_factory())
+
+
+def register_state_socket_handlers(
+    socketio: SocketIO,
+    emitter: StateUpdateEmitter,
+) -> None:
+    def on_connect(_auth=None) -> None:
+        emitter.connect(request.sid)
+
+    def on_disconnect(_reason=None) -> None:
+        emitter.disconnect(request.sid)
+
+    socketio.on_event("connect", on_connect)
+    socketio.on_event("disconnect", on_disconnect)
+
 
 DEFAULT_SETTINGS = {
     "orientation": "horizontal",
@@ -505,9 +580,24 @@ def main() -> None:
     app = Flask(__name__)
     frontend_dist = Path(__file__).resolve().parent / "frontend" / "dist"
     frontend_dev_url = os.environ.get("FRONTEND_DEV_URL", "").rstrip("/")
+    socket_origins_value = os.environ.get("SOCKETIO_ALLOWED_ORIGINS", "")
+    socket_allowed_origins = [
+        origin.strip() for origin in socket_origins_value.split(",") if origin.strip()
+    ] or None
+    socketio = SocketIO(
+        app,
+        async_mode="threading",
+        always_connect=True,
+        cors_allowed_origins=socket_allowed_origins,
+    )
 
     output_dir = args.config.parent / f"{args.config.stem}_output"
     output_dir.mkdir(exist_ok=True)
+    state_emitter: StateUpdateEmitter | None = None
+
+    def notify_state_changed() -> None:
+        if state_emitter is not None:
+            state_emitter.notify()
 
     def room_by_id(config: dict[str, Any], room_id: str) -> dict[str, Any]:
         room = next(
@@ -636,6 +726,8 @@ def main() -> None:
                                 0,
                             )
                         )
+
+                notify_state_changed()
 
             # Phase 1: cheap coarse search without local row optimization.
             coarse_results: list[Candidate] = []
@@ -796,6 +888,7 @@ def main() -> None:
                     room_state.profile["eta_s"] = 0.0
                     room_state.profile["elapsed_s"] = time.perf_counter() - started_at
 
+            notify_state_changed()
         except Exception as exc:
             with state.lock:
                 room_state = state.rooms[room_id]
@@ -805,6 +898,8 @@ def main() -> None:
                     room_state.running = False
                     room_state.finished = True
                     room_state.profile["phase"] = "error"
+
+            notify_state_changed()
 
     def continuous_worker(
         connection,
@@ -893,6 +988,7 @@ def main() -> None:
                             "message": message,
                         }
                     )
+                notify_state_changed()
 
             update_continuous_progress(
                 phase="coarse",
@@ -1015,6 +1111,7 @@ def main() -> None:
                         "message": "Finished",
                     }
                 )
+            notify_state_changed()
         except Exception as exc:
             with state.lock:
                 continuous_state.error = str(exc)
@@ -1027,6 +1124,7 @@ def main() -> None:
                         "message": str(exc),
                     }
                 )
+            notify_state_changed()
 
     def start_continuous(connection, config: dict[str, Any]) -> None:
         continuous_state = state.continuous[connection.connection_id]
@@ -1054,6 +1152,7 @@ def main() -> None:
             "refine_completed": 0,
             "message": "Starting transition calculation",
         }
+        notify_state_changed()
         threading.Thread(
             target=continuous_worker,
             args=(connection, generation, copy.deepcopy(config)),
@@ -1094,6 +1193,7 @@ def main() -> None:
                 "local_variants": 0,
             }
 
+        notify_state_changed()
         threading.Thread(
             target=optimizer_worker,
             args=(room_id, generation, copy.deepcopy(config)),
@@ -1136,8 +1236,8 @@ def main() -> None:
     def frontend(path: str):
         return frontend_response(path)
 
-    @app.get("/api/state")
-    def api_state():
+    # Shared serializer for initial snapshots and pushed updates.
+    def build_state_payload() -> dict[str, Any]:
         with state.lock:
             config_snapshot = copy.deepcopy(state.active_config)
             rooms_payload = [
@@ -1158,63 +1258,61 @@ def main() -> None:
             "max_y": max(item["max_y"] for item in all_bounds),
         }
 
-        return jsonify(
-            {
-                "project_name": config_snapshot["project_name"],
-                "board": config_snapshot["board"],
-                "rooms": rooms_payload,
-                "bounds": project_bounds,
-                "output_dir": str(output_dir),
-                "connections": [
-                    {
-                        **connection_payload(connection),
-                        "continuous": (
-                            {
-                                "running": state.continuous[
+        return {
+            "project_name": config_snapshot["project_name"],
+            "board": config_snapshot["board"],
+            "rooms": rooms_payload,
+            "bounds": project_bounds,
+            "output_dir": str(output_dir),
+            "connections": [
+                {
+                    **connection_payload(connection),
+                    "continuous": (
+                        {
+                            "running": state.continuous[
+                                connection.connection_id
+                            ].running,
+                            "finished": state.continuous[
+                                connection.connection_id
+                            ].finished,
+                            "error": state.continuous[connection.connection_id].error,
+                            "candidate": state.candidate_payload(
+                                state.continuous[connection.connection_id].current
+                                or state.continuous[connection.connection_id].best
+                            ),
+                            "profile": copy.deepcopy(
+                                state.continuous[connection.connection_id].profile
+                            ),
+                            "room_pieces": {
+                                room_id: [
+                                    state.piece_payload(piece) for piece in pieces
+                                ]
+                                for room_id, pieces in state.continuous[
                                     connection.connection_id
-                                ].running,
-                                "finished": state.continuous[
-                                    connection.connection_id
-                                ].finished,
-                                "error": state.continuous[
-                                    connection.connection_id
-                                ].error,
-                                "candidate": state.candidate_payload(
-                                    state.continuous[connection.connection_id].current
-                                    or state.continuous[connection.connection_id].best
-                                ),
-                                "profile": copy.deepcopy(
-                                    state.continuous[connection.connection_id].profile
-                                ),
-                                "room_pieces": {
-                                    room_id: [
-                                        state.piece_payload(piece) for piece in pieces
-                                    ]
-                                    for room_id, pieces in state.continuous[
-                                        connection.connection_id
-                                    ].room_pieces.items()
-                                },
-                                "cut_plan": (
-                                    cut_plan_payload(
-                                        state.continuous[
-                                            connection.connection_id
-                                        ].cut_plan
-                                    )
-                                    if state.continuous[
-                                        connection.connection_id
-                                    ].cut_plan
-                                    is not None
-                                    else None
-                                ),
-                            }
-                            if connection.connection_type == "continuous_then_cut"
-                            else None
-                        ),
-                    }
-                    for connection in state.connections
-                ],
-            }
-        )
+                                ].room_pieces.items()
+                            },
+                            "cut_plan": (
+                                cut_plan_payload(
+                                    state.continuous[connection.connection_id].cut_plan
+                                )
+                                if state.continuous[connection.connection_id].cut_plan
+                                is not None
+                                else None
+                            ),
+                        }
+                        if connection.connection_type == "continuous_then_cut"
+                        else None
+                    ),
+                }
+                for connection in state.connections
+            ],
+        }
+
+    def socket_state_payload() -> dict[str, Any]:
+        return build_state_payload()
+
+    state_emitter = StateUpdateEmitter(socketio, socket_state_payload)
+    register_state_socket_handlers(socketio, state_emitter)
 
     @app.post("/api/room/<room_id>/apply")
     def api_room_apply(room_id: str):
@@ -1302,12 +1400,14 @@ def main() -> None:
     def api_room_pause(room_id: str):
         with state.lock:
             state.rooms[room_id].paused = True
+        notify_state_changed()
         return jsonify({"ok": True})
 
     @app.post("/api/room/<room_id>/resume")
     def api_room_resume(room_id: str):
         with state.lock:
             state.rooms[room_id].paused = False
+        notify_state_changed()
         return jsonify({"ok": True})
 
     @app.post("/api/room/<room_id>/restart")
@@ -1335,12 +1435,13 @@ def main() -> None:
     if not args.no_browser:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
 
-    app.run(
+    socketio.run(
+        app,
         host=args.host,
         port=args.port,
         debug=False,
-        threaded=True,
         use_reloader=False,
+        allow_unsafe_werkzeug=True,
     )
 
 

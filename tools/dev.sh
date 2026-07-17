@@ -35,7 +35,8 @@ FRONTEND_DEV_URL="http://${FRONTEND_HOST}:${FRONTEND_PORT}" \
 BACKEND_PID=$!
 
 cd "$ROOT_DIR/frontend"
-npm run dev -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT" &
+VITE_API_PROXY_TARGET="${VITE_API_PROXY_TARGET:-http://${BACKEND_HOST}:${BACKEND_PORT}}" \
+    npm run dev -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT" &
 FRONTEND_PID=$!
 
 wait "$FRONTEND_PID"
