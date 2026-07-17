@@ -156,7 +156,10 @@ def create_app(
     register_project_routes(app, projects, discard_runtime=runtimes.discard)
     register_runtime_routes(app, runtimes)
 
-    if start_workers:
+    legacy_runtime_enabled = os.environ.get(
+        "PLANNER_ENABLE_LEGACY_RUNTIME", ""
+    ).lower() in {"1", "true", "yes"}
+    if start_workers and legacy_runtime_enabled:
         start_all(initial_config)
 
     return PlannerApplication(

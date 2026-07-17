@@ -38,11 +38,15 @@ describe("useProjectState", () => {
     });
 
     it("receives socket snapshots and exposes reconnect state", () => {
-        const {result, unmount} = renderHook(() => useProjectState());
+        const {result, rerender, unmount} = renderHook(
+            ({projectId}) => useProjectState(projectId),
+            {initialProps: {projectId: "project-1"}},
+        );
 
         expect(result.current.connectionStatus).toBe("connecting");
         expect(vi.mocked(io)).toHaveBeenCalledWith(
             expect.objectContaining({
+                auth: {project_id: "project-1"},
                 transports: ["websocket", "polling"],
                 tryAllTransports: true,
             }),
@@ -68,7 +72,14 @@ describe("useProjectState", () => {
         expect(result.current.connectionError).toBeNull();
         expect(result.current.state?.project_name).toBe("Socket project");
 
-        unmount();
+        rerender({projectId: "project-2"});
+        expect(result.current.state).toBeNull();
         expect(socketMock.socket.disconnect).toHaveBeenCalledOnce();
+        expect(vi.mocked(io)).toHaveBeenLastCalledWith(
+            expect.objectContaining({auth: {project_id: "project-2"}}),
+        );
+
+        unmount();
+        expect(socketMock.socket.disconnect).toHaveBeenCalledTimes(2);
     });
 });

@@ -127,6 +127,12 @@ PLANNER_DATABASE_URL=sqlite:///planner.db tools/dev.sh stue_project.json
 
 ## Project API
 
+Opening the web interface now shows the project dashboard. Projects can be
+created, renamed, duplicated, archived, restored, permanently deleted after
+archiving, imported from JSON, or exported without editing server files. The
+planner uses stable browser routes such as `/projects/<project_id>`; refreshing
+one of those routes is supported by both the Flask and Nginx SPA fallbacks.
+
 Database-backed project management is available under `/api/projects`:
 
 - `GET /api/projects` lists active projects; add `?include_archived=true` to
@@ -153,7 +159,9 @@ then isolated to that project. Commands use the matching project-scoped path:
 
 Generated outputs are stored beneath `planner_data/outputs/<project_id>/`.
 Unscoped Socket.IO connections and `/api/room/...` commands remain available
-temporarily for compatibility with the original startup-file workflow.
+temporarily for compatibility with the original startup-file workflow. Set
+`PLANNER_ENABLE_LEGACY_RUNTIME=true` to eagerly start that legacy runtime;
+normal dashboard usage starts project runtimes lazily when they are opened.
 
 ## Frontend checks
 

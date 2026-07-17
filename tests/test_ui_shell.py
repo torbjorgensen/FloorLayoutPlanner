@@ -18,6 +18,7 @@ def test_frontend_package_declares_react_vite_toolchain() -> None:
     assert package["dependencies"]["react"]
     assert package["dependencies"]["bootstrap"]
     assert package["dependencies"]["react-bootstrap"]
+    assert package["dependencies"]["react-router-dom"]
     assert "@mui/material" not in package["dependencies"]
     assert package["dependencies"]["socket.io-client"]
     assert package["devDependencies"]["vite"]
