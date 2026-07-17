@@ -1,0 +1,10 @@
+.git
+.github
+.venv
+.pytest_cache
+**/__pycache__
+frontend/dist
+frontend/node_modules
+planner_output
+*_output
+*.prof
