@@ -44,6 +44,7 @@ class CandidateInput:
     optimization_step: float
     base_offset: float
     row_width_offset: float
+    start_corner: str = "upper_left"
 
 
 @dataclass(frozen=True)

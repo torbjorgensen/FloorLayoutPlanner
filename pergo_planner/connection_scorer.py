@@ -21,8 +21,7 @@ def room_grid_phase(
     candidate: Candidate,
     board_width: float,
     orientation: str,
-    local_floor_min_x: float,
-    local_floor_min_y: float,
+    floor_bounds: tuple[float, float, float, float],
 ) -> float:
     """
     Beregn radnettets globale fase.
@@ -31,13 +30,22 @@ def room_grid_phase(
     Vertikale bord forskyves på X-aksen.
     """
     origin = room.get("origin", {})
+    settings = room.get("settings", {})
+    start_corner = str(settings.get("start_corner", "upper_left")).lower()
     origin_x = float(origin.get("x", 0))
     origin_y = float(origin.get("y", 0))
+    min_x, min_y, max_x, max_y = floor_bounds
 
     if orientation == "horizontal":
-        grid_origin = origin_y + local_floor_min_y - candidate.row_width_offset
+        if start_corner.startswith("lower"):
+            grid_origin = origin_y + max_y + candidate.row_width_offset
+        else:
+            grid_origin = origin_y + min_y - candidate.row_width_offset
     elif orientation == "vertical":
-        grid_origin = origin_x + local_floor_min_x - candidate.row_width_offset
+        if start_corner.endswith("right"):
+            grid_origin = origin_x + max_x + candidate.row_width_offset
+        else:
+            grid_origin = origin_x + min_x - candidate.row_width_offset
     else:
         raise ValueError("orientation must be 'horizontal' or 'vertical'.")
 
@@ -73,16 +81,14 @@ def score_row_alignment(
         candidate=candidate_a,
         board_width=board_width,
         orientation=orientation_a,
-        local_floor_min_x=floor_bounds_a[0],
-        local_floor_min_y=floor_bounds_a[1],
+        floor_bounds=floor_bounds_a,
     )
     phase_b = room_grid_phase(
         room=room_b,
         candidate=candidate_b,
         board_width=board_width,
         orientation=orientation_b,
-        local_floor_min_x=floor_bounds_b[0],
-        local_floor_min_y=floor_bounds_b[1],
+        floor_bounds=floor_bounds_b,
     )
 
     mismatch = _circular_distance(

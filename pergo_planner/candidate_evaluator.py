@@ -40,6 +40,7 @@ def _candidate_from_evaluation(
         floor,
         data.board_width,
         data.row_width_offset,
+        data.start_corner,
     )
 
     timings = dict(timings)
@@ -80,6 +81,7 @@ def evaluate_candidate_fast(
         board_length=(data.board_length),
         board_width=data.board_width,
         orientation=data.orientation,
+        start_corner=data.start_corner,
         stagger_step=(data.stagger_step),
         minimum_piece_length=(data.minimum_piece_length),
         base_offset=data.base_offset,
@@ -120,6 +122,7 @@ def evaluate_candidate_full(
         board_length=(data.board_length),
         board_width=data.board_width,
         orientation=data.orientation,
+        start_corner=data.start_corner,
         stagger_step=(data.stagger_step),
         minimum_piece_length=(data.minimum_piece_length),
         base_offset=data.base_offset,
@@ -138,6 +141,7 @@ def evaluate_candidate_full(
         board_length=(data.board_length),
         board_width=data.board_width,
         orientation=data.orientation,
+        start_corner=data.start_corner,
         stagger_step=(data.stagger_step),
         minimum_piece_length=(data.minimum_piece_length),
         minimum_joint_distance=(data.minimum_joint_distance),

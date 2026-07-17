@@ -118,6 +118,52 @@ def test_vertical_orientation_covers_same_floor(l_floor) -> None:
     )
 
 
+def test_lower_right_start_corner_moves_first_row_to_bottom_and_first_piece_right() -> (
+    None
+):
+    pieces = create_plan(
+        floor=box(0, 0, 3550, 480),
+        board_length=2050,
+        board_width=240,
+        orientation="horizontal",
+        stagger_step=700,
+        minimum_piece_length=300,
+        base_offset=0,
+        start_corner="lower_right",
+    )
+
+    first_piece = next(
+        piece
+        for piece in pieces
+        if piece.row == 1 and piece.segment == 1 and piece.piece == 1
+    )
+
+    assert first_piece.y1 == pytest.approx(240)
+    assert first_piece.x2 == pytest.approx(3550)
+
+
+def test_vertical_lower_right_corner_starts_right_and_down() -> None:
+    pieces = create_plan(
+        floor=box(0, 0, 480, 3550),
+        board_length=2050,
+        board_width=240,
+        orientation="vertical",
+        stagger_step=700,
+        minimum_piece_length=300,
+        base_offset=0,
+        start_corner="lower_right",
+    )
+
+    first_piece = next(
+        piece
+        for piece in pieces
+        if piece.row == 1 and piece.segment == 1 and piece.piece == 1
+    )
+
+    assert first_piece.x1 == pytest.approx(240)
+    assert first_piece.y2 == pytest.approx(3550)
+
+
 def test_invalid_orientation_is_rejected(l_floor) -> None:
     with pytest.raises(ValueError, match="orientation"):
         create_plan(

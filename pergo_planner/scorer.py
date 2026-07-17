@@ -71,6 +71,7 @@ def row_width_statistics(
     board_width: float,
     orientation: str,
     row_width_offset: float,
+    start_corner: str,
     minimum_row_width: float,
     preferred_minimum_row_width: float,
 ) -> tuple[int, int, float]:
@@ -79,6 +80,7 @@ def row_width_statistics(
         board_width=board_width,
         orientation=orientation,
         row_width_offset=row_width_offset,
+        start_corner=start_corner,
     )
 
     if not fragments:
@@ -102,6 +104,7 @@ def evaluate_pieces(
     floor: Polygon,
     board_width: float,
     row_width_offset: float,
+    start_corner: str = "upper_left",
 ) -> tuple:
     if not pieces:
         return (
@@ -135,6 +138,7 @@ def evaluate_pieces(
         board_width=board_width,
         orientation=orientation,
         row_width_offset=row_width_offset,
+        start_corner=start_corner,
         minimum_row_width=minimum_row_width,
         preferred_minimum_row_width=preferred_minimum_row_width,
     )

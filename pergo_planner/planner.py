@@ -3,12 +3,19 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from itertools import count
 
+from shapely.affinity import scale
 from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, box
 
 from .geometry import swap_xy_polygon
 
 _EPSILON = 1e-6
 _DEFAULT_SAW_KERF_MM = 3.2
+_START_CORNERS = {
+    "upper_left",
+    "upper_right",
+    "lower_left",
+    "lower_right",
+}
 
 
 @dataclass(frozen=True)
@@ -138,6 +145,135 @@ def row_offset(
     base_offset: float,
 ) -> float:
     return (base_offset + row_index * stagger_step) % board_length
+
+
+def _validated_start_corner(start_corner: str) -> str:
+    value = str(start_corner).lower()
+
+    if value not in _START_CORNERS:
+        raise ValueError(
+            "start_corner must be one of: "
+            "upper_left, upper_right, lower_left, lower_right."
+        )
+
+    return value
+
+
+def _start_corner_flags(
+    orientation: str,
+    start_corner: str,
+) -> tuple[bool, bool]:
+    start_corner = _validated_start_corner(start_corner)
+
+    if orientation == "horizontal":
+        return start_corner.endswith("right"), start_corner.startswith("lower")
+
+    if orientation == "vertical":
+        return start_corner.startswith("lower"), start_corner.endswith("right")
+
+    raise ValueError("orientation must be 'horizontal' or 'vertical'.")
+
+
+def _flip_work_floor(
+    work_floor: Polygon,
+    *,
+    flip_longitudinal: bool,
+    flip_transverse: bool,
+) -> Polygon:
+    result = work_floor
+    min_x, min_y, max_x, max_y = work_floor.bounds
+
+    if flip_longitudinal:
+        result = scale(
+            result,
+            xfact=-1,
+            yfact=1,
+            origin=((min_x + max_x) / 2, 0),
+        )
+
+    if flip_transverse:
+        result = scale(
+            result,
+            xfact=1,
+            yfact=-1,
+            origin=(0, (min_y + max_y) / 2),
+        )
+
+    return result
+
+
+def _unflip_piece(
+    piece: Piece,
+    *,
+    min_x: float,
+    min_y: float,
+    max_x: float,
+    max_y: float,
+    flip_longitudinal: bool,
+    flip_transverse: bool,
+) -> Piece:
+    x1 = piece.x1
+    x2 = piece.x2
+    y1 = piece.y1
+    y2 = piece.y2
+
+    if flip_longitudinal:
+        x1, x2 = min_x + max_x - x2, min_x + max_x - x1
+
+    if flip_transverse:
+        y1, y2 = min_y + max_y - y2, min_y + max_y - y1
+
+    return Piece(
+        row=piece.row,
+        segment=piece.segment,
+        piece=piece.piece,
+        x1=x1,
+        x2=x2,
+        y1=y1,
+        y2=y2,
+        length=piece.length,
+        width=piece.width,
+        source_board_index=piece.source_board_index,
+        physical_board_id=piece.physical_board_id,
+        is_full_length=piece.is_full_length,
+    )
+
+
+def _unflip_fragment(
+    fragment: RowFragment,
+    *,
+    min_x: float,
+    min_y: float,
+    max_x: float,
+    max_y: float,
+    flip_longitudinal: bool,
+    flip_transverse: bool,
+) -> RowFragment:
+    min_fragment_x = fragment.min_x
+    max_fragment_x = fragment.max_x
+    min_fragment_y = fragment.min_y
+    max_fragment_y = fragment.max_y
+
+    if flip_longitudinal:
+        min_fragment_x, max_fragment_x = (
+            min_x + max_x - max_fragment_x,
+            min_x + max_x - min_fragment_x,
+        )
+
+    if flip_transverse:
+        min_fragment_y, max_fragment_y = (
+            min_y + max_y - max_fragment_y,
+            min_y + max_y - min_fragment_y,
+        )
+
+    return RowFragment(
+        row=fragment.row,
+        segment=fragment.segment,
+        min_x=min_fragment_x,
+        max_x=max_fragment_x,
+        min_y=min_fragment_y,
+        max_y=max_fragment_y,
+    )
 
 
 def polygon_parts(geometry) -> list[Polygon]:
@@ -474,6 +610,7 @@ def create_plan(
     row_offsets: dict[int, float] | None = None,
     row_width_offset: float = 0.0,
     saw_kerf_mm: float = (_DEFAULT_SAW_KERF_MM),
+    start_corner: str = "upper_left",
 ) -> list[Piece]:
     """
     Lag gulvet i faktisk leggerrekkefølge.
@@ -496,12 +633,21 @@ def create_plan(
     if saw_kerf_mm < 0:
         raise ValueError("saw_kerf_mm cannot be negative.")
 
+    flip_longitudinal, flip_transverse = _start_corner_flags(
+        orientation,
+        start_corner,
+    )
     work_floor, swapped = rotate_polygon_for_orientation(
         floor,
         orientation,
     )
+    transformed_floor = _flip_work_floor(
+        work_floor,
+        flip_longitudinal=flip_longitudinal,
+        flip_transverse=flip_transverse,
+    )
     fragments = build_row_fragments(
-        work_floor=work_floor,
+        work_floor=transformed_floor,
         board_width=board_width,
         row_width_offset=(row_width_offset),
     )
@@ -597,9 +743,19 @@ def create_plan(
 
         active_offcuts = next_offcuts
 
+    min_x, min_y, max_x, max_y = transformed_floor.bounds
+
     return [
         unrotate_piece(
-            piece,
+            _unflip_piece(
+                piece,
+                min_x=min_x,
+                min_y=min_y,
+                max_x=max_x,
+                max_y=max_y,
+                flip_longitudinal=flip_longitudinal,
+                flip_transverse=flip_transverse,
+            ),
             swapped,
         )
         for piece in pieces
@@ -643,20 +799,39 @@ def create_row_fragments(
     board_width: float,
     orientation: str,
     row_width_offset: float,
+    start_corner: str = "upper_left",
 ) -> list[RowFragment]:
+    flip_longitudinal, flip_transverse = _start_corner_flags(
+        orientation,
+        start_corner,
+    )
     work_floor, swapped = rotate_polygon_for_orientation(
         floor,
         orientation,
     )
+    transformed_floor = _flip_work_floor(
+        work_floor,
+        flip_longitudinal=flip_longitudinal,
+        flip_transverse=flip_transverse,
+    )
     fragments = build_row_fragments(
-        work_floor=work_floor,
+        work_floor=transformed_floor,
         board_width=board_width,
         row_width_offset=(row_width_offset),
     )
+    min_x, min_y, max_x, max_y = transformed_floor.bounds
 
     return [
         unrotate_fragment(
-            fragment,
+            _unflip_fragment(
+                fragment,
+                min_x=min_x,
+                min_y=min_y,
+                max_x=max_x,
+                max_y=max_y,
+                flip_longitudinal=flip_longitudinal,
+                flip_transverse=flip_transverse,
+            ),
             swapped,
         )
         for fragment in fragments

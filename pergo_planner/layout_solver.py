@@ -22,6 +22,7 @@ def improve_problem_rows(
     board_length: float,
     board_width: float,
     orientation: str,
+    start_corner: str,
     stagger_step: float,
     minimum_piece_length: float,
     minimum_joint_distance: float,
@@ -47,6 +48,7 @@ def improve_problem_rows(
         floor,
         board_width,
         row_width_offset,
+        start_corner,
     )
 
     # Run a second pass because changing one row can affect its neighbours.
@@ -79,6 +81,7 @@ def improve_problem_rows(
                     board_length=board_length,
                     board_width=board_width,
                     orientation=orientation,
+                    start_corner=start_corner,
                     stagger_step=stagger_step,
                     minimum_piece_length=minimum_piece_length,
                     base_offset=base_offset,
@@ -96,6 +99,7 @@ def improve_problem_rows(
                     floor,
                     board_width,
                     row_width_offset,
+                    start_corner,
                 )
 
                 if trial_score < row_best_score:

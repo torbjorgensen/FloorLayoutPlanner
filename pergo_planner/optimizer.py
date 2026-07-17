@@ -29,6 +29,7 @@ def build_candidate_inputs(
     preferred_minimum_row_width: float,
     optimization_step: float,
     row_width_optimization_step: float,
+    start_corner: str = "upper_left",
 ) -> list[CandidateInput]:
     longitudinal_offsets = []
     value = 0.0
@@ -69,6 +70,7 @@ def build_candidate_inputs(
                     optimization_step=optimization_step,
                     base_offset=base_offset,
                     row_width_offset=row_width_offset,
+                    start_corner=start_corner,
                 )
             )
 

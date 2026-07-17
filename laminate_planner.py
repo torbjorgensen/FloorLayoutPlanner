@@ -32,6 +32,7 @@ from pergo_planner.renderer import plot_plan
 
 DEFAULT_SETTINGS = {
     "orientation": "horizontal",
+    "start_corner": "upper_left",
     "expansion_gap_mm": 5.0,
     "minimum_piece_length_mm": 300.0,
     "minimum_joint_distance_mm": 300.0,
@@ -238,6 +239,7 @@ def editable_room_settings(
 
     return {
         "orientation": settings["orientation"],
+        "start_corner": settings["start_corner"],
         "expansion_gap_mm": float(settings["expansion_gap_mm"]),
         "minimum_piece_length_mm": float(settings["minimum_piece_length_mm"]),
         "minimum_joint_distance_mm": float(settings["minimum_joint_distance_mm"]),
@@ -291,6 +293,17 @@ def update_room_settings(
     orientation = str(payload.get("orientation", "")).lower()
     if orientation not in {"horizontal", "vertical"}:
         raise ValueError("'orientation' must be 'horizontal' or 'vertical'.")
+    start_corner = str(payload.get("start_corner", "")).lower()
+    if start_corner not in {
+        "upper_left",
+        "upper_right",
+        "lower_left",
+        "lower_right",
+    }:
+        raise ValueError(
+            "'start_corner' must be one of: "
+            "upper_left, upper_right, lower_left, lower_right."
+        )
 
     values = {
         "expansion_gap_mm": parse_float(payload, "expansion_gap_mm"),
@@ -351,7 +364,13 @@ def update_room_settings(
     config["board"]["width_mm"] = board_width
 
     room.setdefault("settings", {})
-    room["settings"].update({"orientation": orientation, **values})
+    room["settings"].update(
+        {
+            "orientation": orientation,
+            "start_corner": start_corner,
+            **values,
+        }
+    )
 
     return config
 
@@ -545,6 +564,7 @@ def main() -> None:
                 board_length=float(board["length_mm"]),
                 board_width=float(board["width_mm"]),
                 orientation=settings["orientation"],
+                start_corner=settings["start_corner"],
                 stagger_step=float(settings["stagger_step_mm"]),
                 minimum_piece_length=float(settings["minimum_piece_length_mm"]),
                 minimum_joint_distance=float(settings["minimum_joint_distance_mm"]),
@@ -799,6 +819,10 @@ def main() -> None:
                     "continuous_then_cut requires the same laying "
                     "direction in both rooms."
                 )
+            if settings_a["start_corner"] != settings_b["start_corner"]:
+                raise ValueError(
+                    "continuous_then_cut requires the same start corner in both rooms."
+                )
             orientation = settings_a["orientation"]
             board = config_snapshot["board"]
             floor = build_continuous_floor(
@@ -812,6 +836,7 @@ def main() -> None:
                 board_length=float(board["length_mm"]),
                 board_width=float(board["width_mm"]),
                 orientation=orientation,
+                start_corner=settings_a["start_corner"],
                 stagger_step=float(settings_a["stagger_step_mm"]),
                 minimum_piece_length=float(settings_a["minimum_piece_length_mm"]),
                 minimum_joint_distance=float(settings_a["minimum_joint_distance_mm"]),
