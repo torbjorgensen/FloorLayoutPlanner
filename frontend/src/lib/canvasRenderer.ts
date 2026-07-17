@@ -23,6 +23,21 @@ interface RendererOptions {
     state: ProjectState;
     selectedRoomId: string | null;
     simulation: SimulationState | null;
+    inspectedBoardKey?: string | null;
+}
+
+export interface InspectablePiece {
+    key: string;
+    boardKey: string;
+    piece: Piece;
+    roomId: string;
+    roomName: string;
+    boardScope: string;
+    minimumPieceLength: number;
+}
+
+export interface PieceHit extends InspectablePiece {
+    anchor: {x: number; y: number};
 }
 
 function colorWithAlpha(color: string | undefined, alpha: number): string {
@@ -50,11 +65,10 @@ function colorWithAlpha(color: string | undefined, alpha: number): string {
 }
 
 function projectTransform(
-    canvas: HTMLCanvasElement,
+    width: number,
+    height: number,
     state: ProjectState,
 ) {
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
     const bounds = state.bounds;
     const projectWidth = Math.max(1, bounds.max_x - bounds.min_x);
     const projectHeight = Math.max(1, bounds.max_y - bounds.min_y);
@@ -73,6 +87,123 @@ function projectTransform(
             margin
             + (value - bounds.min_y) * scale,
     };
+}
+
+function pieceInspectionKey(
+    piece: Piece,
+    roomId: string,
+    boardScope: string,
+) {
+    return [
+        roomId,
+        scopedBoardIdentity(piece, boardScope),
+        piece.row,
+        piece.segment,
+        piece.piece,
+        piece.x1,
+        piece.y1,
+    ].join(":");
+}
+
+function inspectionBoardKey(piece: Piece, boardScope: string) {
+    const identity = piece.physical_board_id
+        || (piece.source_board_index !== null
+            ? `source:${piece.source_board_index}`
+            : `placement:${piece.row}:${piece.segment}:${piece.piece}`);
+    return `${boardScope}:${identity}`;
+}
+
+export function inspectableFloorPieces(state: ProjectState): InspectablePiece[] {
+    const result: InspectablePiece[] = [];
+    const renderedByContinuous = new Set<string>();
+
+    const addPieces = (
+        pieces: Piece[],
+        room: RoomStatePayload,
+        boardScope: string,
+    ) => {
+        for (const piece of pieces) {
+            result.push({
+                key: pieceInspectionKey(piece, room.id, boardScope),
+                boardKey: inspectionBoardKey(piece, boardScope),
+                piece,
+                roomId: room.id,
+                roomName: room.name,
+                boardScope,
+                minimumPieceLength: room.minimum_piece_length,
+            });
+        }
+    };
+
+    for (const connection of state.connections || []) {
+        if (
+            connection.type !== "continuous_then_cut"
+            || !hasSplitRoomPieces(connection)
+        ) {
+            continue;
+        }
+
+        for (const [roomId, pieces] of Object.entries(
+            connection.continuous?.room_pieces || {},
+        )) {
+            const room = state.rooms.find(item => item.id === roomId);
+            if (!room) {
+                continue;
+            }
+            addPieces(pieces, room, `connection:${connection.id}`);
+            renderedByContinuous.add(roomId);
+        }
+    }
+
+    for (const room of state.rooms) {
+        if (renderedByContinuous.has(room.id)) {
+            continue;
+        }
+        const candidate = candidateForRoom(state, room);
+        if (candidate) {
+            addPieces(candidate.pieces, room, `room:${room.id}`);
+        }
+    }
+
+    return result;
+}
+
+export function hitTestFloorPiece(
+    state: ProjectState,
+    viewport: {width: number; height: number},
+    point: {x: number; y: number},
+): PieceHit | null {
+    const {x, y, scale} = projectTransform(viewport.width, viewport.height, state);
+    const pieces = inspectableFloorPieces(state);
+
+    // Reverse order mirrors canvas paint order at shared edges/overlaps.
+    for (let index = pieces.length - 1; index >= 0; index -= 1) {
+        const item = pieces[index];
+        const left = x(item.piece.x1);
+        const top = y(item.piece.y1);
+        const right = left + (item.piece.x2 - item.piece.x1) * scale;
+        const bottom = top + (item.piece.y2 - item.piece.y1) * scale;
+
+        if (
+            point.x >= left
+            && point.x <= right
+            && point.y >= top
+            && point.y <= bottom
+        ) {
+            return {
+                ...item,
+                anchor: {
+                    x: Math.min(
+                        Math.max((left + right) / 2, 12),
+                        Math.max(12, viewport.width - 304),
+                    ),
+                    y: Math.max((top + bottom) / 2, 190),
+                },
+            };
+        }
+    }
+
+    return null;
 }
 
 function simulationStepState(
@@ -394,6 +525,7 @@ function drawPieces(
     boardScope: string,
     room: RoomStatePayload | null,
     simulation: SimulationState | null,
+    inspectedBoardKey: string | null,
 ) {
     const piecesByBoardRow = new Map<string, Piece[]>();
     const boardRowAnchors = new Map<string, Piece>();
@@ -455,6 +587,16 @@ function drawPieces(
         const screenHeight = (piece.y2 - piece.y1) * scale;
 
         context.fillRect(screenX, screenY, screenWidth, screenHeight);
+        const boardKey = inspectionBoardKey(piece, boardScope);
+        if (boardKey === inspectedBoardKey) {
+            context.save();
+            context.fillStyle = "rgba(25, 118, 210, 0.16)";
+            context.strokeStyle = "#1976d2";
+            context.lineWidth = 3;
+            context.fillRect(screenX, screenY, screenWidth, screenHeight);
+            context.strokeRect(screenX, screenY, screenWidth, screenHeight);
+            context.restore();
+        }
         drawPieceOutline(
             context,
             piece,
@@ -560,6 +702,7 @@ function drawFloorPieces(
     x: (value: number) => number,
     y: (value: number) => number,
     scale: number,
+    inspectedBoardKey: string | null,
 ) {
     const renderedByContinuous = new Set<string>();
 
@@ -587,6 +730,7 @@ function drawFloorPieces(
                 `connection:${connection.id}`,
                 room,
                 simulation,
+                inspectedBoardKey,
             );
             renderedByContinuous.add(roomId);
         }
@@ -614,6 +758,7 @@ function drawFloorPieces(
             `room:${room.id}`,
             room,
             simulation,
+            inspectedBoardKey,
         );
     }
 }
@@ -749,6 +894,7 @@ export function renderFloorPlan({
     state,
     selectedRoomId,
     simulation,
+    inspectedBoardKey = null,
 }: RendererOptions) {
     const context = canvas.getContext("2d");
     if (!context) {
@@ -762,7 +908,11 @@ export function renderFloorPlan({
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
 
     context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-    const {x, y, scale} = projectTransform(canvas, state);
+    const {x, y, scale} = projectTransform(
+        canvas.clientWidth,
+        canvas.clientHeight,
+        state,
+    );
 
     drawRoomBackgrounds(context, state, selectedRoomId, x, y, scale);
     drawPassages(context, state, x, y, scale);
@@ -774,6 +924,7 @@ export function renderFloorPlan({
         x,
         y,
         scale,
+        inspectedBoardKey,
     );
     drawTransitions(context, state, x, y, scale);
     drawRoomOutlines(context, state, selectedRoomId, x, y);
