@@ -84,6 +84,11 @@ jobs:
         run: |
           npm ci
 
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: |
+          npm run audit
+
       - name: Test and build frontend
         working-directory: frontend
         run: |

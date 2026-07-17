@@ -165,10 +165,13 @@ normal dashboard usage starts project runtimes lazily when they are opened.
 
 ## Frontend checks
 
+The frontend toolchain requires Node.js 20.19+ or 22.12+.
+
 ```bash
 cd frontend
 npm test -- --run
 npm run build
+npm run audit
 ```
 
 ## Backend checks
