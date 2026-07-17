@@ -31,6 +31,11 @@ def test_app_factory_can_start_without_optimizer_workers(config_path: Path) -> N
     assert received[0]["name"] == STATE_EVENT
     assert received[0]["args"][0]["project_name"]
     assert all(not room.running for room in runtime.state.rooms.values())
+    assert all(
+        connection["continuous"]["provisional"] is False
+        for connection in received[0]["args"][0]["connections"]
+        if connection["continuous"] is not None
+    )
 
 
 def test_unknown_room_commands_return_client_errors(config_path: Path) -> None:

@@ -46,6 +46,7 @@ class ContinuousState:
         self.best: Candidate | None = None
         self.cut_plan = None
         self.room_pieces: dict[str, list] = {}
+        self.provisional = False
         self.profile: dict[str, Any] = {
             "phase": "idle",
             "completed": 0,

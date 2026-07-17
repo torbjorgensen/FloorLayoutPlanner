@@ -349,6 +349,11 @@ select {
     background: #b00020;
 }
 
+.legend-swatch-provisional {
+    border: 1px dashed #b45309;
+    background: rgba(253, 230, 138, 0.72);
+}
+
 .canvas-stage {
     position: relative;
 }

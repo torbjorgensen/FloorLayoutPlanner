@@ -99,8 +99,8 @@ function inspection(key: string, boardKey: string): PieceHit {
 const first = inspection("piece-1", "B00001");
 const second = inspection("piece-2", "B00002");
 
-function renderPlanner() {
-    inspectionMocks.state = state;
+function renderPlanner(projectState = state) {
+    inspectionMocks.state = projectState;
     inspectionMocks.pieces.mockReturnValue([first, second]);
     inspectionMocks.hit.mockImplementation((_, __, point: {x: number}) =>
         point.x < 300 ? first : point.x < 600 ? second : null,
@@ -202,5 +202,31 @@ describe("planner board inspection interactions", () => {
         );
         fireEvent.click(screen.getByRole("button", {name: "Close alert"}));
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("identifies a running transition preview as provisional", () => {
+        renderPlanner({
+            ...state,
+            connections: [{
+                id: "shared_floor",
+                type: "continuous_then_cut",
+                room_a: "room_1",
+                room_b: "room_2",
+                continuous: {
+                    running: true,
+                    finished: false,
+                    error: null,
+                    provisional: true,
+                    candidate: null,
+                    profile: {percent: 25, message: "Coarse-searching transition"},
+                    room_pieces: {room_1: [first.piece]},
+                    cut_plan: null,
+                },
+            }],
+        });
+
+        expect(screen.getAllByText(/showing best provisional layout/))
+            .toHaveLength(2);
+        expect(screen.getByText("Provisional preview")).toBeInTheDocument();
     });
 });

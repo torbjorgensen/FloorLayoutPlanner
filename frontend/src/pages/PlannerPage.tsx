@@ -81,12 +81,16 @@ function statusForRoom(
             && progress.eta_s !== undefined
                 ? ` - about ${formatSeconds(progress.eta_s)} remaining`
                 : "";
+        const previewText = continuous.provisional
+            ? " — showing best provisional layout"
+            : "";
 
         return {
             text:
                 `${progress.message || "Optimizing transition"}`
                 + ` - ${formatNumber(percent, 1)} %`
-                + etaText,
+                + etaText
+                + previewText,
             kind: "running",
         };
     }
@@ -747,6 +751,12 @@ function PlannerPage({projectId}: PlannerPageProps) {
                                         <span className="legend-swatch legend-swatch-short"></span>
                                         Short piece warning
                                     </span>
+                                    {connection?.continuous?.provisional && (
+                                        <span className="legend-pill">
+                                            <span className="legend-swatch legend-swatch-provisional"></span>
+                                            Provisional preview
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -754,6 +764,7 @@ function PlannerPage({projectId}: PlannerPageProps) {
                             <Alert
                                 className="simulation-feedback"
                                 dismissible
+                                id="simulationStatus"
                                 onClose={() => stopSimulation()}
                                 role={simulationFeedbackVariant === "warning" ? "alert" : "status"}
                                 variant={simulationFeedbackVariant}

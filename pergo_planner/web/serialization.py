@@ -53,6 +53,7 @@ def _continuous_payload(state: ProjectState, connection_id: str) -> dict[str, An
         "running": continuous.running,
         "finished": continuous.finished,
         "error": continuous.error,
+        "provisional": continuous.provisional,
         "candidate": state.candidate_payload(continuous.current or continuous.best),
         "profile": copy.deepcopy(continuous.profile),
         "room_pieces": {

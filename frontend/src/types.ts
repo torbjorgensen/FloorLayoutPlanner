@@ -151,6 +151,7 @@ export interface ContinuousStatePayload {
     running: boolean;
     finished: boolean;
     error: string | null;
+    provisional?: boolean;
     candidate: Candidate | null;
     profile: ContinuousProfile;
     room_pieces: Record<string, Piece[]>;
