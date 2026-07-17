@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from flask import Flask, redirect, send_from_directory
+from flask import Flask, jsonify, redirect, send_from_directory
 from flask_socketio import SocketIO
 
 from pergo_planner.web.config import load_config
@@ -81,6 +81,11 @@ def create_app(config_path: Path, *, start_workers: bool = True) -> PlannerAppli
             503,
             {"Content-Type": "text/html; charset=utf-8"},
         )
+
+    @app.get("/healthz")
+    def health():
+        """Report that the web process is ready to accept requests."""
+        return jsonify({"status": "ok"})
 
     @app.get("/")
     def index():

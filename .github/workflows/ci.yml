@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
+      - dev
       - feature/**
   pull_request:
     branches:
       - main
+      - dev
 
 permissions:
   contents: read
@@ -86,3 +88,46 @@ jobs:
         working-directory: frontend
         run: |
           npm run check
+
+  production:
+    name: Production containers
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install WebSocket smoke-test dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build and smoke-test production stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          smoke_dir="$RUNNER_TEMP/planner-production"
+          mkdir -p "$smoke_dir/output"
+          cp examples/example_project.json "$smoke_dir/project.json"
+          chmod 666 "$smoke_dir/project.json"
+          chmod 777 "$smoke_dir/output"
+          export PLANNER_CONFIG_FILE="$smoke_dir/project.json"
+          export PLANNER_OUTPUT_DIR="$smoke_dir/output"
+          export PLANNER_PORT=8080
+          export PLANNER_UID="$(id -u)"
+          export PLANNER_GID="$(id -g)"
+          trap 'docker compose down --volumes' EXIT
+
+          docker compose up --build --detach --wait
+          curl --fail --silent http://127.0.0.1:8080/healthz
+          curl --fail --silent http://127.0.0.1:8080/ > /dev/null
+          curl --fail --silent http://127.0.0.1:8080/a/client/route > /dev/null
+          curl --fail --silent --request POST \
+            http://127.0.0.1:8080/api/room/stue/pause > /dev/null
+          node frontend/scripts/smoke-production.mjs http://127.0.0.1:8080

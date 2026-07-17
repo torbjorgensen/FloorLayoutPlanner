@@ -44,6 +44,16 @@ def test_unknown_room_commands_return_client_errors(config_path: Path) -> None:
     assert restart.status_code == 404
 
 
+def test_health_endpoint_reports_readiness(config_path: Path) -> None:
+    """Health checks must not depend on optimizer workers or frontend assets."""
+    runtime = create_app(config_path, start_workers=False)
+
+    response = runtime.app.test_client().get("/healthz")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "ok"}
+
+
 def test_invalid_search_reports_error_without_writing_outputs(
     config_path: Path,
     monkeypatch: pytest.MonkeyPatch,
