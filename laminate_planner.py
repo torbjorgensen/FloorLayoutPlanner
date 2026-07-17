@@ -5,13 +5,14 @@ import argparse
 import copy
 import csv
 import json
+import os
 import threading
 import time
 import webbrowser
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, request, send_from_directory
 
 from pergo_planner.connections import connection_payload, parse_connections
 from pergo_planner.continuous_solver import (
@@ -502,6 +503,8 @@ def main() -> None:
     initial_config = load_config(args.config)
     state = ProjectState(initial_config)
     app = Flask(__name__)
+    frontend_dist = Path(__file__).resolve().parent / "frontend" / "dist"
+    frontend_dev_url = os.environ.get("FRONTEND_DEV_URL", "").rstrip("/")
 
     output_dir = args.config.parent / f"{args.config.stem}_output"
     output_dir.mkdir(exist_ok=True)
@@ -1104,12 +1107,34 @@ def main() -> None:
             if connection.connection_type == "continuous_then_cut":
                 start_continuous(connection, config)
 
+    def frontend_response(path: str = ""):
+        if frontend_dev_url:
+            suffix = f"/{path}" if path else ""
+            return redirect(f"{frontend_dev_url}{suffix}")
+
+        if frontend_dist.exists():
+            if path:
+                asset_path = frontend_dist / path
+                if asset_path.is_file():
+                    return send_from_directory(frontend_dist, path)
+            return send_from_directory(frontend_dist, "index.html")
+
+        return (
+            "<h1>Frontend build missing</h1>"
+            "<p>Run <code>npm install</code> and <code>npm run build</code> "
+            "inside <code>frontend/</code>, or start the dev stack with "
+            "<code>tools/dev.sh</code>.</p>",
+            503,
+            {"Content-Type": "text/html; charset=utf-8"},
+        )
+
     @app.get("/")
     def index():
-        return render_template(
-            "index.html",
-            project_name=state.active_config["project_name"],
-        )
+        return frontend_response()
+
+    @app.get("/<path:path>")
+    def frontend(path: str):
+        return frontend_response(path)
 
     @app.get("/api/state")
     def api_state():
