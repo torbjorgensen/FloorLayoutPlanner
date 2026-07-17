@@ -21,9 +21,11 @@ def build_state_payload(state: ProjectState, output_dir: Path) -> dict[str, Any]
         connections = [
             {
                 **connection_payload(connection),
-                "continuous": _continuous_payload(state, connection.connection_id)
-                if connection.connection_type == "continuous_then_cut"
-                else None,
+                "continuous": (
+                    _continuous_payload(state, connection.connection_id)
+                    if connection.connection_type == "continuous_then_cut"
+                    else None
+                ),
             }
             for connection in state.connections
         ]
