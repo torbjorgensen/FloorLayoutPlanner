@@ -106,6 +106,21 @@ def test_create_rename_and_stale_update_conflict(client, config_path: Path) -> N
     assert "changed" in stale_response.get_json()["error"]
 
 
+def test_create_name_builds_a_valid_editable_project(client) -> None:
+    response = client.post("/api/projects", json={"name": "New build"})
+
+    assert response.status_code == 201
+    project = response.get_json()["project"]
+    assert project["name"] == "New build"
+    assert project["config"]["rooms"][0]["rectangles"][0] == {
+        "name": "Main area",
+        "x": 0,
+        "y": 0,
+        "width": 4000,
+        "height": 3000,
+    }
+
+
 def test_archive_restore_and_permanent_delete_are_versioned(client) -> None:
     project = seeded_project(client)
 

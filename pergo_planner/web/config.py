@@ -25,6 +25,36 @@ DEFAULT_SETTINGS = {
 }
 
 
+def new_project_config(name: str) -> dict[str, Any]:
+    """Create a valid editable rectangle project for browser-based creation."""
+    project_name = name.strip()
+    if not project_name:
+        raise ValueError("Project name cannot be empty.")
+    return {
+        "project_name": project_name,
+        "board": {"length_mm": 2050, "width_mm": 240, "saw_kerf_mm": 3.2},
+        "settings": copy.deepcopy(DEFAULT_SETTINGS),
+        "rooms": [
+            {
+                "id": "room_1",
+                "name": "Room 1",
+                "origin": {"x": 0, "y": 0},
+                "rectangles": [
+                    {
+                        "name": "Main area",
+                        "x": 0,
+                        "y": 0,
+                        "width": 4000,
+                        "height": 3000,
+                    }
+                ],
+                "settings": {},
+            }
+        ],
+        "connections": [],
+    }
+
+
 def load_config(path: Path) -> dict[str, Any]:
     """Load, normalize, and validate a project configuration file."""
     if not path.exists():

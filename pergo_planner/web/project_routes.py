@@ -13,6 +13,7 @@ from pergo_planner.storage import (
     ProjectRecord,
     ProjectService,
 )
+from pergo_planner.web.config import new_project_config
 
 
 def _metadata(project: ProjectRecord) -> dict[str, Any]:
@@ -96,7 +97,11 @@ def register_project_routes(
     @api.post("/import")
     def project_create():
         payload = _json_object()
-        config = payload.get("config", payload)
+        config = (
+            new_project_config(str(payload["name"]))
+            if set(payload) == {"name"}
+            else payload.get("config", payload)
+        )
         if not isinstance(config, dict):
             raise ValueError("'config' must be a JSON object.")
         created = projects.create(config)

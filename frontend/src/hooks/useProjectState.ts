@@ -15,14 +15,20 @@ interface ProjectStateSocket {
     connectionError: string | null;
 }
 
-export function useProjectState(): ProjectStateSocket {
+export function useProjectState(projectId?: string): ProjectStateSocket {
     const [state, setState] = useState<ProjectState | null>(null);
     const [connectionStatus, setConnectionStatus] =
         useState<ConnectionStatus>("connecting");
     const [connectionError, setConnectionError] = useState<string | null>(null);
 
     useEffect(() => {
+        // Never show the previous project's floor while a new subscription is
+        // connecting, even briefly.
+        setState(null);
+        setConnectionStatus("connecting");
+        setConnectionError(null);
         const socket = io({
+            auth: projectId ? {project_id: projectId} : undefined,
             path: "/socket.io",
             transports: ["websocket", "polling"],
             tryAllTransports: true,
@@ -53,7 +59,7 @@ export function useProjectState(): ProjectStateSocket {
         return () => {
             socket.disconnect();
         };
-    }, []);
+    }, [projectId]);
 
     return {state, connectionStatus, connectionError};
 }

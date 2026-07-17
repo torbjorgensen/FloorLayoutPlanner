@@ -6,6 +6,7 @@ interface PlannerHeaderProps {
     connectionStatus: ConnectionStatus;
     connectionError: string | null;
     onRestartAll: () => void;
+    onBackToProjects?: () => void;
 }
 
 export function PlannerHeader({
@@ -13,6 +14,7 @@ export function PlannerHeader({
     connectionStatus,
     connectionError,
     onRestartAll,
+    onBackToProjects,
 }: PlannerHeaderProps) {
     const connectionLabel = {
         connecting: "Connecting",
@@ -29,6 +31,15 @@ export function PlannerHeader({
                 </p>
             </div>
             <div className="topbar-actions">
+                {onBackToProjects && (
+                    <ActionButton
+                        className="action-button planner-projects-button"
+                        onClick={onBackToProjects}
+                        type="button"
+                    >
+                        Projects
+                    </ActionButton>
+                )}
                 <div
                     className="topbar-note"
                     data-status={connectionStatus}

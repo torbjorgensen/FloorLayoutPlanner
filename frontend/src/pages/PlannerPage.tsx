@@ -142,10 +142,14 @@ function statusForRoom(
     };
 }
 
-function PlannerPage() {
+interface PlannerPageProps {
+    projectId?: string;
+}
+
+function PlannerPage({projectId}: PlannerPageProps) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const hoverFrameRef = useRef<number | null>(null);
-    const {state, connectionStatus, connectionError} = useProjectState();
+    const {state, connectionStatus, connectionError} = useProjectState(projectId);
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
     const [activePanel, setActivePanel] = useState(0);
     const [formState, setFormState] = useState<FormState>({});
@@ -359,7 +363,9 @@ function PlannerPage() {
         }
 
         const response = await fetch(
-            `/api/room/${selectedRoomId}/${action}`,
+            projectId
+                ? `/api/projects/${projectId}/runtime/room/${selectedRoomId}/${action}`
+                : `/api/room/${selectedRoomId}/${action}`,
             {
                 method: "POST",
                 headers: payload
@@ -451,7 +457,12 @@ function PlannerPage() {
     async function handleRestartAll() {
         stopSimulation();
         try {
-            await fetch("/api/restart-all", {method: "POST"});
+            await fetch(
+                projectId
+                    ? `/api/projects/${projectId}/runtime/restart-all`
+                    : "/api/restart-all",
+                {method: "POST"},
+            );
         } catch (error) {
             setValidationMessage(
                 error instanceof Error ? error.message : "Restart failed.",
@@ -581,6 +592,9 @@ function PlannerPage() {
                 connectionStatus={connectionStatus}
                 connectionError={connectionError}
                 onRestartAll={() => void handleRestartAll()}
+                onBackToProjects={
+                    projectId ? () => window.location.assign("/") : undefined
+                }
             />
 
             <main className="workspace">
