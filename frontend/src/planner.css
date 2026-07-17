@@ -385,9 +385,22 @@ select {
     pointer-events: none;
 }
 
+.board-inspection-pinned {
+    border-color: rgba(255, 207, 112, 0.9);
+    box-shadow:
+        0 0 0 2px rgba(255, 207, 112, 0.24),
+        var(--shadow-deep);
+}
+
 .board-inspection > strong,
 .board-inspection > span {
     display: block;
+}
+
+.board-inspection .board-inspection-state {
+    margin-top: 6px;
+    color: #ffcf70;
+    font-weight: 700;
 }
 
 .board-inspection > span {

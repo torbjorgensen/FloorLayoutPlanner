@@ -231,6 +231,42 @@ function PlannerPage({projectId}: PlannerPageProps) {
         setInspectionPinned(false);
     }, [selectedRoomId]);
 
+    useEffect(() => {
+        setInspectedPiece(null);
+        setInspectionPinned(false);
+    }, [projectId]);
+
+    useEffect(() => {
+        if (!inspectedPiece) {
+            return;
+        }
+        const inspectionStillAvailable = state
+            ? inspectableFloorPieces(state).some(
+                piece => piece.key === inspectedPiece.key,
+            )
+            : false;
+        if (!inspectionStillAvailable) {
+            setInspectedPiece(null);
+            setInspectionPinned(false);
+        }
+    }, [state, inspectedPiece]);
+
+    useEffect(() => {
+        if (!inspectionPinned) {
+            return;
+        }
+        const dismissOutsideCanvas = (event: PointerEvent) => {
+            if (event.target !== canvasRef.current) {
+                setInspectedPiece(null);
+                setInspectionPinned(false);
+            }
+        };
+        document.addEventListener("pointerdown", dismissOutsideCanvas, true);
+        return () => {
+            document.removeEventListener("pointerdown", dismissOutsideCanvas, true);
+        };
+    }, [inspectionPinned]);
+
     useEffect(
         () => () => {
             if (simulationRun?.timerId) {
@@ -285,9 +321,6 @@ function PlannerPage({projectId}: PlannerPageProps) {
     }
 
     function handleCanvasPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
-        if (event.pointerType === "mouse") {
-            return;
-        }
         const hit = pieceAtPointer(
             event.currentTarget,
             event.clientX,
@@ -708,7 +741,10 @@ function PlannerPage({projectId}: PlannerPageProps) {
                                 tabIndex={0}
                             ></canvas>
                             {inspectedPiece && (
-                                <BoardInspection inspection={inspectedPiece} />
+                                <BoardInspection
+                                    inspection={inspectedPiece}
+                                    pinned={inspectionPinned}
+                                />
                             )}
                             <div className="canvas-overlay">
                                 <p className="overlay-title">How to read the view</p>

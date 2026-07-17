@@ -181,4 +181,19 @@ describe("canvas board inspection", () => {
             "Shorter than the configured minimum",
         );
     });
+
+    it("announces and visually distinguishes a pinned inspection", () => {
+        const inspection: PieceHit = {
+            ...inspectableFloorPieces(state)[0],
+            anchor: {x: 100, y: 100},
+        };
+
+        const {container} = render(
+            <BoardInspection inspection={inspection} pinned />,
+        );
+        const status = container.querySelector("[role='status']");
+
+        expect(status).toHaveTextContent("Pinned selection");
+        expect(status).toHaveClass("board-inspection-pinned");
+    });
 });

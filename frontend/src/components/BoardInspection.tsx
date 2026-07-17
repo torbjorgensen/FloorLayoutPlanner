@@ -3,9 +3,10 @@ import {boardOrderLabel, formatNumber} from "../lib/planning";
 
 interface BoardInspectionProps {
     inspection: PieceHit;
+    pinned?: boolean;
 }
 
-export function BoardInspection({inspection}: BoardInspectionProps) {
+export function BoardInspection({inspection, pinned = false}: BoardInspectionProps) {
     const {piece} = inspection;
     const boardName = piece.physical_board_id
         || `Board ${piece.source_board_index ?? "–"}`;
@@ -13,12 +14,13 @@ export function BoardInspection({inspection}: BoardInspectionProps) {
     return (
         <aside
             id="boardInspection"
-            className="board-inspection"
+            className={`board-inspection${pinned ? " board-inspection-pinned" : ""}`}
             role="status"
             style={{left: inspection.anchor.x, top: inspection.anchor.y}}
         >
             <strong>{boardName}</strong>
             <span>{inspection.roomName}</span>
+            {pinned && <span className="board-inspection-state">Pinned selection</span>}
             <dl>
                 <div>
                     <dt>Placement</dt>
