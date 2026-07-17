@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Callable
 
 from flask import Blueprint, Flask, Response, jsonify, request
 
@@ -54,7 +54,12 @@ def _expected_version(payload: dict[str, Any]) -> int:
     return parsed
 
 
-def register_project_routes(app: Flask, projects: ProjectService) -> None:
+def register_project_routes(
+    app: Flask,
+    projects: ProjectService,
+    *,
+    discard_runtime: Callable[[str], None] | None = None,
+) -> None:
     """Register stable project endpoints backed by the service boundary."""
     api = Blueprint("projects", __name__, url_prefix="/api/projects")
 
@@ -138,6 +143,8 @@ def register_project_routes(app: Flask, projects: ProjectService) -> None:
             archived,
             expected_version=_expected_version(payload),
         )
+        if archived and discard_runtime is not None:
+            discard_runtime(project_id)
         return jsonify({"ok": True, "project": _project_payload(updated)})
 
     @api.post("/<project_id>/archive")
@@ -152,6 +159,8 @@ def register_project_routes(app: Flask, projects: ProjectService) -> None:
     def project_delete(project_id: str):
         payload = _json_object()
         projects.delete(project_id, expected_version=_expected_version(payload))
+        if discard_runtime is not None:
+            discard_runtime(project_id)
         return jsonify({"ok": True})
 
     @api.get("/<project_id>/export")

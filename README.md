@@ -142,6 +142,19 @@ Database-backed project management is available under `/api/projects`:
 Every mutation of an existing project requires its current `expected_version`.
 Stale updates return HTTP 409 instead of overwriting newer changes.
 
+Live planner clients select a project by passing `project_id` in the Socket.IO
+connection auth object. Their initial and subsequent `project_state` events are
+then isolated to that project. Commands use the matching project-scoped path:
+
+```text
+/api/projects/<project_id>/runtime/room/<room_id>/<action>
+/api/projects/<project_id>/runtime/restart-all
+```
+
+Generated outputs are stored beneath `planner_data/outputs/<project_id>/`.
+Unscoped Socket.IO connections and `/api/room/...` commands remain available
+temporarily for compatibility with the original startup-file workflow.
+
 ## Frontend checks
 
 ```bash

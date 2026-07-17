@@ -12,6 +12,8 @@ from pergo_planner.storage import ProjectService, initialize_project_storage
 from pergo_planner.web.config import load_config
 from pergo_planner.web.project_routes import register_project_routes
 from pergo_planner.web.routes import register_command_routes
+from pergo_planner.web.runtime import ProjectRuntimeRegistry
+from pergo_planner.web.runtime_routes import register_runtime_routes
 from pergo_planner.web.serialization import build_state_payload
 from pergo_planner.web.sockets import (
     StateUpdateEmitter,
@@ -28,6 +30,7 @@ class PlannerApplication:
     state: ProjectState
     output_dir: Path
     projects: ProjectService
+    runtimes: ProjectRuntimeRegistry
     start_all: Callable[[dict[str, Any]], None]
     shutdown: Callable[[], None]
 
@@ -64,6 +67,18 @@ def create_app(
         always_connect=True,
         cors_allowed_origins=socket_allowed_origins,
     )
+    project_output_root = Path(
+        os.environ.get(
+            "PLANNER_PROJECT_OUTPUT_ROOT",
+            str(config_path.resolve().parent / "planner_data" / "outputs"),
+        )
+    )
+    runtimes = ProjectRuntimeRegistry(
+        projects=projects,
+        socketio=socketio,
+        output_root=project_output_root,
+        start_workers=start_workers,
+    )
 
     output_dir = config_path.parent / f"{config_path.stem}_output"
     output_dir.mkdir(exist_ok=True)
@@ -73,9 +88,7 @@ def create_app(
         if state_emitter is not None:
             state_emitter.notify()
 
-    workers = create_worker_manager(
-        state, output_dir, config_path, notify_state_changed
-    )
+    workers = create_worker_manager(state, output_dir, notify_state_changed)
     room_by_id = workers.room_by_id
     start_room = workers.start_room
     start_all = workers.start_all
@@ -118,12 +131,17 @@ def create_app(
         return build_state_payload(state, output_dir)
 
     state_emitter = StateUpdateEmitter(socketio, socket_state_payload)
-    register_state_socket_handlers(socketio, state_emitter)
+    register_state_socket_handlers(
+        socketio,
+        state_emitter,
+        project_emitter=lambda project_id: runtimes.get(project_id).emitter,
+    )
 
     def shutdown() -> None:
         """Release timers and optimizer coordinators owned by this app."""
         state_emitter.close()
         workers.shutdown()
+        runtimes.close()
         projects.close()
 
     register_command_routes(
@@ -135,7 +153,8 @@ def create_app(
         start_all=start_all,
         notify=notify_state_changed,
     )
-    register_project_routes(app, projects)
+    register_project_routes(app, projects, discard_runtime=runtimes.discard)
+    register_runtime_routes(app, runtimes)
 
     if start_workers:
         start_all(initial_config)
@@ -146,6 +165,7 @@ def create_app(
         state=state,
         output_dir=output_dir,
         projects=projects,
+        runtimes=runtimes,
         start_all=start_all,
         shutdown=shutdown,
     )

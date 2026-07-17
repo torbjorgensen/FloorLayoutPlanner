@@ -37,13 +37,16 @@ class StateUpdateEmitter:
             self.clients.discard(session_id)
 
     def close(self) -> None:
-        """Cancel a pending broadcast timer during application shutdown."""
+        """Cancel pending work and disconnect clients from this state source."""
         with self.lock:
+            clients = tuple(self.clients)
             self.clients.clear()
             timer = self.timer
             self.timer = None
         if timer is not None:
             timer.cancel()
+        for session_id in clients:
+            self.socketio.server.disconnect(session_id, namespace="/")
 
     def notify(self) -> None:
         emit_now = False
@@ -73,18 +76,39 @@ class StateUpdateEmitter:
         self._emit()
 
     def _emit(self) -> None:
-        self.socketio.emit(STATE_EVENT, self.payload_factory())
+        payload = self.payload_factory()
+        with self.lock:
+            clients = tuple(self.clients)
+        for session_id in clients:
+            self.socketio.emit(STATE_EVENT, payload, to=session_id)
 
 
 def register_state_socket_handlers(
     socketio: SocketIO,
     emitter: StateUpdateEmitter,
+    project_emitter: Callable[[str], StateUpdateEmitter] | None = None,
 ) -> None:
-    def on_connect(_auth=None) -> None:
-        emitter.connect(request.sid)
+    client_emitters: dict[str, StateUpdateEmitter] = {}
+    client_lock = threading.Lock()
+
+    def on_connect(auth=None) -> bool | None:
+        selected = emitter
+        project_id = auth.get("project_id") if isinstance(auth, dict) else None
+        if project_id and project_emitter is not None:
+            try:
+                selected = project_emitter(str(project_id))
+            except LookupError:
+                return False
+        with client_lock:
+            client_emitters[request.sid] = selected
+        selected.connect(request.sid)
+        return None
 
     def on_disconnect(_reason=None) -> None:
-        emitter.disconnect(request.sid)
+        with client_lock:
+            selected = client_emitters.pop(request.sid, None)
+        if selected is not None:
+            selected.disconnect(request.sid)
 
     socketio.on_event("connect", on_connect)
     socketio.on_event("disconnect", on_disconnect)
