@@ -61,7 +61,8 @@ def test_backend_port_is_reusable_immediately_after_termination(tmp_path: Path) 
     process = subprocess.Popen(
         [
             sys.executable,
-            "laminate_planner.py",
+            "-m",
+            "floor_layout_planner.cli",
             str(config_path),
             "--host",
             "127.0.0.1",

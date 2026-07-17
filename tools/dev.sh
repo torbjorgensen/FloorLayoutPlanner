@@ -78,7 +78,7 @@ fi
 cd "$ROOT_DIR"
 
 setsid env FRONTEND_DEV_URL="http://${FRONTEND_HOST}:${FRONTEND_PORT}" \
-    .venv/bin/python laminate_planner.py "$CONFIG_PATH" \
+    .venv/bin/python -m floor_layout_planner.cli "$CONFIG_PATH" \
     --host "$BACKEND_HOST" \
     --port "$BACKEND_PORT" \
     --no-browser &

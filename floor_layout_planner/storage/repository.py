@@ -11,7 +11,7 @@ from uuid import uuid4
 from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
-from pergo_planner.storage.models import ProjectModel
+from floor_layout_planner.storage.models import ProjectModel
 
 
 class ProjectNotFoundError(LookupError):

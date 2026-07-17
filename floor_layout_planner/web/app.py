@@ -8,19 +8,19 @@ from typing import Any, Callable
 from flask import Flask, jsonify, redirect, send_from_directory
 from flask_socketio import SocketIO
 
-from pergo_planner.storage import ProjectService, initialize_project_storage
-from pergo_planner.web.config import load_config
-from pergo_planner.web.project_routes import register_project_routes
-from pergo_planner.web.routes import register_command_routes
-from pergo_planner.web.runtime import ProjectRuntimeRegistry
-from pergo_planner.web.runtime_routes import register_runtime_routes
-from pergo_planner.web.serialization import build_state_payload
-from pergo_planner.web.sockets import (
+from floor_layout_planner.storage import ProjectService, initialize_project_storage
+from floor_layout_planner.web.config import load_config
+from floor_layout_planner.web.project_routes import register_project_routes
+from floor_layout_planner.web.routes import register_command_routes
+from floor_layout_planner.web.runtime import ProjectRuntimeRegistry
+from floor_layout_planner.web.runtime_routes import register_runtime_routes
+from floor_layout_planner.web.serialization import build_state_payload
+from floor_layout_planner.web.sockets import (
     StateUpdateEmitter,
     register_state_socket_handlers,
 )
-from pergo_planner.web.state import ProjectState
-from pergo_planner.web.workers import create_worker_manager
+from floor_layout_planner.web.state import ProjectState
+from floor_layout_planner.web.workers import create_worker_manager
 
 
 @dataclass

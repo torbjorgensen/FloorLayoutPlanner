@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from pergo_planner.storage.database import (
+from floor_layout_planner.storage.database import (
     create_database_engine,
     create_session_factory,
 )
-from pergo_planner.storage.migrations import upgrade_database
-from pergo_planner.storage.repository import ProjectRepository
-from pergo_planner.storage.service import ProjectService
+from floor_layout_planner.storage.migrations import upgrade_database
+from floor_layout_planner.storage.repository import ProjectRepository
+from floor_layout_planner.storage.service import ProjectService
 
 
 def initialize_project_storage(database_url: str) -> ProjectService:

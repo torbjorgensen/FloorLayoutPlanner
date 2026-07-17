@@ -7,11 +7,11 @@ from unittest.mock import Mock
 
 import pytest
 
-from pergo_planner.models import Candidate
-from pergo_planner.planner import Piece
-from pergo_planner.web.app import create_app
-from pergo_planner.web.config import load_config
-from pergo_planner.web.sockets import STATE_EVENT
+from floor_layout_planner.models import Candidate
+from floor_layout_planner.planner import Piece
+from floor_layout_planner.web.app import create_app
+from floor_layout_planner.web.config import load_config
+from floor_layout_planner.web.sockets import STATE_EVENT
 
 
 @pytest.fixture
@@ -116,13 +116,13 @@ def test_invalid_search_reports_error_without_writing_outputs(
     write_csv = Mock()
     plot_plan = Mock()
     monkeypatch.setattr(
-        "pergo_planner.web.workers.parallel_coarse_generator", candidates
+        "floor_layout_planner.web.workers.parallel_coarse_generator", candidates
     )
     monkeypatch.setattr(
-        "pergo_planner.web.workers.parallel_refine_generator", candidates
+        "floor_layout_planner.web.workers.parallel_refine_generator", candidates
     )
-    monkeypatch.setattr("pergo_planner.web.workers.write_piece_csv", write_csv)
-    monkeypatch.setattr("pergo_planner.web.workers.plot_plan", plot_plan)
+    monkeypatch.setattr("floor_layout_planner.web.workers.write_piece_csv", write_csv)
+    monkeypatch.setattr("floor_layout_planner.web.workers.plot_plan", plot_plan)
 
     runtime = create_app(config_path, start_workers=False)
     room_id = next(iter(runtime.state.rooms))

@@ -7,9 +7,9 @@ from typing import Any
 
 from flask import Blueprint, Flask, jsonify, request
 
-from pergo_planner.storage import ProjectConflictError, ProjectNotFoundError
-from pergo_planner.web.config import editable_room_settings, update_room_settings
-from pergo_planner.web.runtime import (
+from floor_layout_planner.storage import ProjectConflictError, ProjectNotFoundError
+from floor_layout_planner.web.config import editable_room_settings, update_room_settings
+from floor_layout_planner.web.runtime import (
     ProjectRuntime,
     ProjectRuntimeRegistry,
     ProjectUnavailableError,

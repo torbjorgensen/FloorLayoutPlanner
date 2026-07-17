@@ -3,14 +3,14 @@ from __future__ import annotations
 import threading
 from dataclasses import replace
 
-from pergo_planner.models import (
+from floor_layout_planner.models import (
     CandidateInput,
     CutSettings,
     Opening,
     Passage,
     RoomConnection,
 )
-from pergo_planner.optimizer import (
+from floor_layout_planner.optimizer import (
     ProcessBudget,
     build_candidate_inputs,
     continuous_inputs,

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from pergo_planner.geometry import build_floor_polygon
-from pergo_planner.planner import create_plan
-from pergo_planner.renderer import plot_plan
+from floor_layout_planner.geometry import build_floor_polygon
+from floor_layout_planner.planner import create_plan
+from floor_layout_planner.renderer import plot_plan
 
 
 def test_plot_plan_creates_non_empty_png(tmp_path) -> None:

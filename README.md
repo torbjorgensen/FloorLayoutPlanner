@@ -6,7 +6,7 @@ A browser-based tool for optimizing laminate-floor layouts across connected room
 
 - Backend: Flask + Python laying engine
 - Frontend: React + TypeScript + Vite
-- Component library: Material UI
+- Component library: React Bootstrap
 - Rendering: HTML canvas with client-side laying simulation
 - Live state transport: Socket.IO over WebSocket
 
@@ -17,6 +17,7 @@ A browser-based tool for optimizing laminate-floor layouts across connected room
 ```bash
 python -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
+.venv/bin/pip install --no-deps -e .
 ```
 
 ### Frontend
@@ -47,10 +48,19 @@ Serves the built frontend from `frontend/dist`:
 cd frontend
 npm run build
 cd ..
-python laminate_planner.py stue_project.json
+floor-layout-planner stue_project.json
 ```
 
 If no frontend build exists, Flask returns a setup page telling you to build the frontend or use `tools/dev.sh`.
+
+### Naming compatibility
+
+The canonical Python package is `floor_layout_planner` and the canonical CLI is
+`floor-layout-planner`. The old `pergo_planner` import package and
+`laminate_planner.py` script remain as deprecated compatibility shims for
+existing callers. New code should not use them. API routes, Socket.IO events,
+database migration identifiers, project files, and existing environment
+variables remain unchanged by the package rename.
 
 ## Production with Docker
 
@@ -228,5 +238,5 @@ pre-commit run --all-files
 For a frontend that connects directly to Flask instead of using the Vite proxy, configure allowed Socket.IO origins explicitly:
 
 ```bash
-SOCKETIO_ALLOWED_ORIGINS="https://your-forwarded-host.example" python laminate_planner.py stue_project.json
+SOCKETIO_ALLOWED_ORIGINS="https://your-forwarded-host.example" floor-layout-planner stue_project.json
 ```

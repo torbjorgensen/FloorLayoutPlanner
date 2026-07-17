@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from pergo_planner.geometry import build_floor_polygon
+from floor_layout_planner.geometry import build_floor_polygon
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES_DIR = PROJECT_ROOT / "examples"

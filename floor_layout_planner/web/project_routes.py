@@ -7,13 +7,13 @@ from typing import Any, Callable
 
 from flask import Blueprint, Flask, Response, jsonify, request
 
-from pergo_planner.storage import (
+from floor_layout_planner.storage import (
     ProjectConflictError,
     ProjectNotFoundError,
     ProjectRecord,
     ProjectService,
 )
-from pergo_planner.web.config import new_project_config
+from floor_layout_planner.web.config import new_project_config
 
 
 def _metadata(project: ProjectRecord) -> dict[str, Any]:

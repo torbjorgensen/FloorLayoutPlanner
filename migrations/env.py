@@ -7,7 +7,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from pergo_planner.storage.models import Base
+from floor_layout_planner.storage.models import Base
 
 config = context.config
 if config.config_file_name is not None:

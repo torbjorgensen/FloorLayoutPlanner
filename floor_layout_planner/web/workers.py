@@ -7,12 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from pergo_planner.continuous_solver import (
+from floor_layout_planner.continuous_solver import (
     build_continuous_floor,
     split_candidate_at_cut,
 )
-from pergo_planner.models import Candidate
-from pergo_planner.optimizer import (
+from floor_layout_planner.models import Candidate
+from floor_layout_planner.optimizer import (
     build_candidate_inputs,
     continuous_inputs,
     parallel_coarse_generator,
@@ -20,18 +20,18 @@ from pergo_planner.optimizer import (
     parallel_continuous_refine_generator,
     parallel_refine_generator,
 )
-from pergo_planner.renderer import plot_plan
-from pergo_planner.validation import (
+from floor_layout_planner.renderer import plot_plan
+from floor_layout_planner.validation import (
     InfeasibleLayoutError,
     candidate_meets_minimum_length,
     cut_plan_meets_minimum_length,
     select_best_valid_candidate,
     split_pieces_meet_minimum_lengths,
 )
-from pergo_planner.web.config import merged_settings
-from pergo_planner.web.outputs import write_piece_csv
-from pergo_planner.web.payloads import local_floor
-from pergo_planner.web.state import ProjectState, RoomState
+from floor_layout_planner.web.config import merged_settings
+from floor_layout_planner.web.outputs import write_piece_csv
+from floor_layout_planner.web.payloads import local_floor
+from floor_layout_planner.web.state import ProjectState, RoomState
 
 
 @dataclass(frozen=True)

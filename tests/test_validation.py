@@ -5,10 +5,10 @@ from dataclasses import replace
 import pytest
 from shapely.geometry import box
 
-from pergo_planner.models import Candidate, CutPlan
-from pergo_planner.planner import Piece
-from pergo_planner.scorer import evaluate_pieces
-from pergo_planner.validation import (
+from floor_layout_planner.models import Candidate, CutPlan
+from floor_layout_planner.planner import Piece
+from floor_layout_planner.scorer import evaluate_pieces
+from floor_layout_planner.validation import (
     InfeasibleLayoutError,
     candidate_meets_minimum_length,
     cut_plan_meets_minimum_length,

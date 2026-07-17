@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from pergo_planner.web.app import PlannerApplication, create_app
-from pergo_planner.web.config import editable_room_settings
-from pergo_planner.web.sockets import STATE_EVENT
+from floor_layout_planner.web.app import PlannerApplication, create_app
+from floor_layout_planner.web.config import editable_room_settings
+from floor_layout_planner.web.sockets import STATE_EVENT
 
 
 @pytest.fixture

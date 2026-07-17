@@ -6,7 +6,7 @@ from pathlib import Path
 import matplotlib
 import pytest
 
-from pergo_planner.geometry import build_floor_polygon
+from floor_layout_planner.geometry import build_floor_polygon
 
 matplotlib.use("Agg")
 

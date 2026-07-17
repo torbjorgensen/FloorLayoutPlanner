@@ -8,10 +8,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from pergo_planner.models import Candidate, ContinuousEvaluation, CutPlan
-from pergo_planner.planner import Piece
-from pergo_planner.web.state import ProjectState
-from pergo_planner.web.workers import create_worker_manager
+from floor_layout_planner.models import Candidate, ContinuousEvaluation, CutPlan
+from floor_layout_planner.planner import Piece
+from floor_layout_planner.web.state import ProjectState
+from floor_layout_planner.web.workers import create_worker_manager
 
 
 def _candidate(attempt: int, score: int) -> Candidate:
@@ -64,7 +64,7 @@ def test_continuous_previews_publish_best_candidate_at_bounded_cadence(
     refined = [_candidate(4, 0)]
 
     monkeypatch.setattr(
-        "pergo_planner.web.workers.build_candidate_inputs",
+        "floor_layout_planner.web.workers.build_candidate_inputs",
         lambda **_kwargs: [
             SimpleNamespace(base_offset=float(index), row_width_offset=0)
             for index in range(1, 4)
@@ -72,11 +72,11 @@ def test_continuous_previews_publish_best_candidate_at_bounded_cadence(
     )
 
     monkeypatch.setattr(
-        "pergo_planner.web.workers.parallel_coarse_generator",
+        "floor_layout_planner.web.workers.parallel_coarse_generator",
         lambda **_kwargs: iter(copy.deepcopy(coarse)),
     )
     monkeypatch.setattr(
-        "pergo_planner.web.workers.parallel_refine_generator",
+        "floor_layout_planner.web.workers.parallel_refine_generator",
         lambda **_kwargs: iter(copy.deepcopy(refined)),
     )
     cut_plan = CutPlan(
@@ -107,11 +107,11 @@ def test_continuous_previews_publish_best_candidate_at_bounded_cadence(
         )
 
     monkeypatch.setattr(
-        "pergo_planner.web.workers.parallel_continuous_coarse_generator",
+        "floor_layout_planner.web.workers.parallel_continuous_coarse_generator",
         lambda **_kwargs: evaluations(coarse),
     )
     monkeypatch.setattr(
-        "pergo_planner.web.workers.parallel_continuous_refine_generator",
+        "floor_layout_planner.web.workers.parallel_continuous_refine_generator",
         lambda **_kwargs: evaluations(refined),
     )
 
@@ -122,13 +122,15 @@ def test_continuous_previews_publish_best_candidate_at_bounded_cadence(
         }
 
     monkeypatch.setattr(
-        "pergo_planner.web.workers.split_candidate_at_cut",
+        "floor_layout_planner.web.workers.split_candidate_at_cut",
         split_preview,
     )
     monkeypatch.setattr(
-        "pergo_planner.web.workers.write_piece_csv", lambda *_args: None
+        "floor_layout_planner.web.workers.write_piece_csv", lambda *_args: None
     )
-    monkeypatch.setattr("pergo_planner.web.workers.plot_plan", lambda **_kwargs: None)
+    monkeypatch.setattr(
+        "floor_layout_planner.web.workers.plot_plan", lambda **_kwargs: None
+    )
 
     state = ProjectState(config)
     snapshots: list[tuple[str, int, int]] = []

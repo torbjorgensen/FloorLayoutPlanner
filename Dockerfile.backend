@@ -10,7 +10,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-COPY pergo_planner ./pergo_planner
+COPY floor_layout_planner ./floor_layout_planner
 COPY alembic.ini ./
 COPY migrations ./migrations
 
@@ -23,4 +23,4 @@ USER planner
 
 EXPOSE 8765
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8765", "--workers", "1", "--threads", "8", "--timeout", "300", "--access-logfile", "-", "pergo_planner.web.production:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8765", "--workers", "1", "--threads", "8", "--timeout", "300", "--access-logfile", "-", "floor_layout_planner.web.production:app"]

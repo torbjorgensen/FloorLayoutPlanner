@@ -7,8 +7,8 @@ from typing import Any, Callable
 
 from flask import Flask, jsonify, request
 
-from pergo_planner.web.config import editable_room_settings, update_room_settings
-from pergo_planner.web.state import ProjectState
+from floor_layout_planner.web.config import editable_room_settings, update_room_settings
+from floor_layout_planner.web.state import ProjectState
 
 StartRoom = Callable[[str, dict[str, Any]], None]
 StartAll = Callable[[dict[str, Any]], None]

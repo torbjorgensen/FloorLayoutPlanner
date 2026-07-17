@@ -4,11 +4,11 @@ import pytest
 from shapely.geometry import box
 from shapely.ops import unary_union
 
-from pergo_planner.continuous_solver import (
+from floor_layout_planner.continuous_solver import (
     build_continuous_floor,
     split_candidate_at_cut,
 )
-from pergo_planner.models import (
+from floor_layout_planner.models import (
     Candidate,
     CutPlan,
     CutSettings,
@@ -16,7 +16,7 @@ from pergo_planner.models import (
     Passage,
     RoomConnection,
 )
-from pergo_planner.planner import create_plan
+from floor_layout_planner.planner import create_plan
 
 
 def room(

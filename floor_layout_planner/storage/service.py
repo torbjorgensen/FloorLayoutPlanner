@@ -5,12 +5,12 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from pergo_planner.storage.repository import (
+from floor_layout_planner.storage.repository import (
     ProjectConflictError,
     ProjectRecord,
     ProjectRepository,
 )
-from pergo_planner.web.config import normalize_and_validate_config
+from floor_layout_planner.web.config import normalize_and_validate_config
 
 
 class ProjectService:

@@ -4,8 +4,8 @@ import pytest
 from shapely.geometry import box
 from shapely.ops import unary_union
 
-from pergo_planner.geometry import build_floor_polygon
-from pergo_planner.planner import create_plan, create_row_fragments
+from floor_layout_planner.geometry import build_floor_polygon
+from floor_layout_planner.planner import create_plan, create_row_fragments
 
 
 def pieces_union(pieces):

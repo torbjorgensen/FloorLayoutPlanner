@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from pergo_planner.connection_scorer import (
+from floor_layout_planner.connection_scorer import (
     _circular_distance,
     score_row_alignment,
 )
-from pergo_planner.models import (
+from floor_layout_planner.models import (
     Candidate,
     Opening,
     RoomConnection,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from flask import Flask
 from flask_socketio import SocketIO
 
-from laminate_planner import (
+from floor_layout_planner.cli import (
     STATE_EVENT,
     StateUpdateEmitter,
     register_state_socket_handlers,

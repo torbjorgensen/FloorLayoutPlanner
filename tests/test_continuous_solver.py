@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from pergo_planner.connections import parse_connections
-from pergo_planner.continuous_solver import (
+from floor_layout_planner.connections import parse_connections
+from floor_layout_planner.continuous_solver import (
     best_cut_plan,
     build_continuous_floor,
     continuous_candidate_score,
 )
-from pergo_planner.models import Candidate
-from pergo_planner.planner import create_plan
+from floor_layout_planner.models import Candidate
+from floor_layout_planner.planner import create_plan
 
 
 def config():

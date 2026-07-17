@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from pergo_planner.web.app import PlannerApplication, create_app
-from pergo_planner.web.config import load_config
+from floor_layout_planner.web.app import PlannerApplication, create_app
+from floor_layout_planner.web.config import load_config
 
 
 @pytest.fixture

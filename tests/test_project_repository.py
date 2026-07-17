@@ -6,18 +6,18 @@ from pathlib import Path
 import pytest
 from sqlalchemy import inspect, select
 
-from pergo_planner.storage import (
+from floor_layout_planner.storage import (
     ProjectConflictError,
     ProjectNotFoundError,
     ProjectRepository,
     ProjectService,
     upgrade_database,
 )
-from pergo_planner.storage.database import (
+from floor_layout_planner.storage.database import (
     create_database_engine,
     create_session_factory,
 )
-from pergo_planner.storage.models import ProjectModel
+from floor_layout_planner.storage.models import ProjectModel
 
 
 def project(name: str = "Project") -> dict:

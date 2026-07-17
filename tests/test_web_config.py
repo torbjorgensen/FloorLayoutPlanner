@@ -4,7 +4,7 @@ import copy
 
 import pytest
 
-from pergo_planner.web.config import editable_room_settings, update_room_settings
+from floor_layout_planner.web.config import editable_room_settings, update_room_settings
 
 
 def project() -> dict:
