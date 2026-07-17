@@ -8,15 +8,16 @@ from pathlib import Path
 from typing import Any, Callable
 
 from pergo_planner.continuous_solver import (
-    best_cut_plan,
     build_continuous_floor,
-    continuous_candidate_score,
     split_candidate_at_cut,
 )
 from pergo_planner.models import Candidate
 from pergo_planner.optimizer import (
     build_candidate_inputs,
+    continuous_inputs,
     parallel_coarse_generator,
+    parallel_continuous_coarse_generator,
+    parallel_continuous_refine_generator,
     parallel_refine_generator,
 )
 from pergo_planner.renderer import plot_plan
@@ -515,24 +516,24 @@ def create_worker_manager(
             refined_ranked = []
             best_preview_item = None
             coarse_completed = 0
-            for candidate in parallel_coarse_generator(inputs=inputs, workers=workers):
+            transition_inputs = continuous_inputs(
+                inputs,
+                connection=connection,
+                orientation=orientation,
+                minimum_piece_length=minimum_length,
+                minimum_row_width=float(settings_a["minimum_row_width_mm"]),
+                preferred_minimum_row_width=float(
+                    settings_a["preferred_minimum_row_width_mm"]
+                ),
+            )
+            for evaluation in parallel_continuous_coarse_generator(
+                inputs=transition_inputs, workers=workers
+            ):
                 if shutdown_requested.is_set():
                     return
                 if generation != continuous_state.generation:
                     return
-                cut_plan = best_cut_plan(
-                    candidate,
-                    connection,
-                    orientation,
-                    minimum_length,
-                    float(settings_a["minimum_row_width_mm"]),
-                    float(settings_a["preferred_minimum_row_width_mm"]),
-                )
-                item = (
-                    continuous_candidate_score(candidate, cut_plan),
-                    candidate,
-                    cut_plan,
-                )
+                item = (evaluation.score, evaluation.candidate, evaluation.cut_plan)
                 coarse_ranked.append(item)
                 coarse_completed += 1
                 if best_preview_item is None or item_rank(item) < item_rank(
@@ -567,6 +568,16 @@ def create_worker_manager(
                 input_lookup[(candidate.base_offset, candidate.row_width_offset)]
                 for _, candidate, _ in coarse_ranked[:top_n]
             ]
+            refine_transition_inputs = continuous_inputs(
+                refine_inputs,
+                connection=connection,
+                orientation=orientation,
+                minimum_piece_length=minimum_length,
+                minimum_row_width=float(settings_a["minimum_row_width_mm"]),
+                preferred_minimum_row_width=float(
+                    settings_a["preferred_minimum_row_width_mm"]
+                ),
+            )
             refine_completed = 0
             update_continuous_progress(
                 phase="refine",
@@ -575,25 +586,13 @@ def create_worker_manager(
                 coarse_completed=coarse_total,
                 refine_completed=0,
             )
-            for candidate in parallel_refine_generator(
-                inputs=refine_inputs,
+            for evaluation in parallel_continuous_refine_generator(
+                inputs=refine_transition_inputs,
                 workers=min(workers, max(1, len(refine_inputs))),
             ):
                 if shutdown_requested.is_set():
                     return
-                cut_plan = best_cut_plan(
-                    candidate,
-                    connection,
-                    orientation,
-                    minimum_length,
-                    float(settings_a["minimum_row_width_mm"]),
-                    float(settings_a["preferred_minimum_row_width_mm"]),
-                )
-                item = (
-                    continuous_candidate_score(candidate, cut_plan),
-                    candidate,
-                    cut_plan,
-                )
+                item = (evaluation.score, evaluation.candidate, evaluation.cut_plan)
                 refined_ranked.append(item)
                 refine_completed += 1
                 if item_rank(item) < item_rank(best_preview_item):

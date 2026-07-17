@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from pergo_planner.models import Candidate, CutPlan
+from pergo_planner.models import Candidate, ContinuousEvaluation, CutPlan
 from pergo_planner.planner import Piece
 from pergo_planner.web.state import ProjectState
 from pergo_planner.web.workers import create_worker_manager
@@ -95,9 +95,24 @@ def test_continuous_previews_publish_best_candidate_at_bounded_cadence(
         center_distance_mm=0,
         score=(0,),
     )
+
+    def evaluations(candidates):
+        return iter(
+            ContinuousEvaluation(
+                score=(*cut_plan.score, *candidate.score),
+                candidate=copy.deepcopy(candidate),
+                cut_plan=cut_plan,
+            )
+            for candidate in candidates
+        )
+
     monkeypatch.setattr(
-        "pergo_planner.web.workers.best_cut_plan",
-        lambda *_args, **_kwargs: cut_plan,
+        "pergo_planner.web.workers.parallel_continuous_coarse_generator",
+        lambda **_kwargs: evaluations(coarse),
+    )
+    monkeypatch.setattr(
+        "pergo_planner.web.workers.parallel_continuous_refine_generator",
+        lambda **_kwargs: evaluations(refined),
     )
 
     def split_preview(*, candidate, connection, **_kwargs):

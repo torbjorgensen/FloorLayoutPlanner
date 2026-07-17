@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import threading
 from dataclasses import replace
 
-from pergo_planner.models import CandidateInput
+from pergo_planner.models import (
+    CandidateInput,
+    CutSettings,
+    Opening,
+    Passage,
+    RoomConnection,
+)
 from pergo_planner.optimizer import (
+    ProcessBudget,
     build_candidate_inputs,
+    continuous_inputs,
     evaluate_candidate_fast,
+    parallel_continuous_coarse_generator,
 )
 
 
@@ -72,3 +82,68 @@ def test_row_width_offset_is_reflected_in_candidate(l_floor) -> None:
     candidate = evaluate_candidate_fast(data)
 
     assert candidate.row_width_offset == 75
+
+
+def test_process_budget_prevents_concurrent_pool_oversubscription() -> None:
+    budget = ProcessBudget(capacity=2)
+    first_acquired = threading.Event()
+    release_first = threading.Event()
+    second_acquired = threading.Event()
+    grants: list[int] = []
+
+    def first_job() -> None:
+        with budget.lease(2) as granted:
+            grants.append(granted)
+            first_acquired.set()
+            release_first.wait(timeout=1)
+
+    def second_job() -> None:
+        first_acquired.wait(timeout=1)
+        with budget.lease(2) as granted:
+            grants.append(granted)
+            second_acquired.set()
+
+    first = threading.Thread(target=first_job)
+    second = threading.Thread(target=second_job)
+    first.start()
+    second.start()
+
+    assert first_acquired.wait(timeout=1)
+    assert not second_acquired.wait(timeout=0.05)
+    release_first.set()
+    first.join(timeout=1)
+    second.join(timeout=1)
+
+    assert second_acquired.is_set()
+    assert grants == [2, 2]
+    assert budget.available == budget.capacity
+
+
+def test_continuous_generation_and_scoring_run_in_worker_processes(l_floor) -> None:
+    inputs = [
+        candidate_input(l_floor),
+        replace(candidate_input(l_floor), attempt=2, base_offset=200),
+    ]
+    connection = RoomConnection(
+        connection_id="test_transition",
+        room_a="a",
+        room_b="b",
+        connection_type="continuous_then_cut",
+        opening=Opening(0, 900, 1000, 900),
+        passage=Passage(0, 900, 1000, 200),
+        cut=CutSettings(axis="y", search_step_mm=50),
+    )
+    tasks = continuous_inputs(
+        inputs,
+        connection=connection,
+        orientation="horizontal",
+        minimum_piece_length=300,
+        minimum_row_width=60,
+        preferred_minimum_row_width=100,
+    )
+
+    results = list(parallel_continuous_coarse_generator(inputs=tasks, workers=2))
+
+    assert {result.candidate.attempt for result in results} == {1, 2}
+    assert all(result.cut_plan.connection_id == "test_transition" for result in results)
+    assert all(result.score for result in results)

@@ -182,6 +182,11 @@ env PYTHONPATH=$PWD MPLCONFIGDIR=/tmp/mplconfig .venv/bin/pytest
 
 ## Benchmark / Profile
 
+Optimizer process pools share one global budget equal to the host's logical
+CPU count. `optimizer_workers` is a per-job maximum; concurrent room and
+transition searches divide the global allowance and never create more worker
+processes than that host-wide limit.
+
 Benchmark plan generation for all rooms in a project:
 
 ```bash
