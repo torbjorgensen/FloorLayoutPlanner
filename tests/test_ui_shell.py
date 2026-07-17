@@ -49,10 +49,10 @@ def test_vite_config_proxies_api_requests() -> None:
 
 
 def test_flask_backend_serves_frontend_build_or_dev_url() -> None:
-    backend = project_file("laminate_planner.py").read_text(encoding="utf-8")
+    backend = project_file("pergo_planner/web/app.py").read_text(encoding="utf-8")
 
     assert (
-        'frontend_dist = Path(__file__).resolve().parent / "frontend" / "dist"'
+        'frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"'
         in backend
     )
     assert "FRONTEND_DEV_URL" in backend
