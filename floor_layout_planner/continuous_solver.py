@@ -481,7 +481,8 @@ def split_candidate_at_cut(
             "rooms on the same side of the saw cut. Check passage and cut.axis."
         )
 
-    clips = {
+    passage = passage_polygon(connection)
+    side_clips = {
         connection.room_a: _side_clip(
             axis=cut_plan.axis,
             side=side_a,
@@ -494,6 +495,16 @@ def split_candidate_at_cut(
             cut_position=cut_plan.position_mm,
             gap_width_mm=cut_plan.gap_width_mm,
         ),
+    }
+    rooms = {
+        connection.room_a: room_a,
+        connection.room_b: room_b,
+    }
+    clips = {
+        room_id: global_room_polygon(rooms[room_id]).union(
+            passage.intersection(side_clip)
+        )
+        for room_id, side_clip in side_clips.items()
     }
 
     return {
