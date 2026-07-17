@@ -211,6 +211,24 @@ def test_invalid_import_cannot_create_or_replace_projects(client) -> None:
     assert [project["id"] for project in projects] == [initial["id"]]
 
 
+def test_invalid_rectangle_edit_cannot_replace_saved_project(client) -> None:
+    initial = seeded_project(client)
+    stored = client.get(f"/api/projects/{initial['id']}").get_json()["project"]
+    invalid = copy.deepcopy(stored["config"])
+    invalid["rooms"][0]["rectangles"][0]["width"] = 0
+
+    response = client.patch(
+        f"/api/projects/{initial['id']}",
+        json={"config": invalid, "expected_version": initial["version"]},
+    )
+
+    assert response.status_code == 400
+    assert "width must be greater than 0" in response.get_json()["error"]
+    unchanged = client.get(f"/api/projects/{initial['id']}").get_json()["project"]
+    assert unchanged["version"] == initial["version"]
+    assert unchanged["config"] == stored["config"]
+
+
 @pytest.mark.parametrize("expected_version", [None, 0, True, "invalid"])
 def test_mutations_require_a_positive_integer_version(
     client, expected_version: object

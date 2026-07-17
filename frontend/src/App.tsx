@@ -1,6 +1,7 @@
 import {BrowserRouter, Navigate, Route, Routes, useParams} from "react-router-dom";
 
 import PlannerPage from "./pages/PlannerPage";
+import ProjectEditorPage from "./pages/ProjectEditorPage";
 import ProjectsPage from "./pages/ProjectsPage";
 
 function ProjectPlannerRoute() {
@@ -15,6 +16,7 @@ function App() {
         >
             <Routes>
                 <Route element={<ProjectsPage />} path="/" />
+                <Route element={<ProjectEditorPage />} path="/projects/:projectId/edit" />
                 <Route element={<ProjectPlannerRoute />} path="/projects/:projectId" />
                 <Route element={<Navigate replace to="/" />} path="*" />
             </Routes>
