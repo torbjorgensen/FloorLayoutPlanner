@@ -41,6 +41,10 @@ def test_ui_template_exposes_required_frontend_ids() -> None:
         "summaryStartCorner",
         "summaryProgress",
         "summaryOutput",
+        "simulateDelayInput",
+        "simulateButton",
+        "stopSimulationButton",
+        "simulationStatus",
         "restartAllButton",
         "pauseButton",
         "resumeButton",
@@ -71,5 +75,9 @@ def test_ui_script_references_new_shell_elements() -> None:
     assert 'document.getElementById("roomTabs")' in script
     assert 'document.getElementById("statusBadge")' in script
     assert 'document.getElementById("summaryRoomName")' in script
+    assert 'document.getElementById("simulateButton")' in script
+    assert 'document.getElementById("simulationStatus")' in script
     assert "populateRoomTabs" in script
     assert "syncRoomTabs" in script
+    assert "startSimulation" in script
+    assert "stopSimulation" in script

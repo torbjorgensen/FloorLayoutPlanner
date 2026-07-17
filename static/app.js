@@ -18,6 +18,10 @@ const summaryDirection = document.getElementById("summaryDirection");
 const summaryStartCorner = document.getElementById("summaryStartCorner");
 const summaryProgress = document.getElementById("summaryProgress");
 const summaryOutput = document.getElementById("summaryOutput");
+const simulateDelayInput = document.getElementById("simulateDelayInput");
+const simulateButton = document.getElementById("simulateButton");
+const stopSimulationButton = document.getElementById("stopSimulationButton");
+const simulationStatus = document.getElementById("simulationStatus");
 
 const POLL_INTERVAL_MS = 500;
 
@@ -29,6 +33,7 @@ let renderedPieceHitboxes = [];
 let hoveredPieceKey = null;
 let hoveredPhysicalBoardId = null;
 let hoverTooltip = null;
+let simulationRun = null;
 
 
 function selectedRoom() {
@@ -50,6 +55,13 @@ function titleCaseWords(value) {
                 + word.slice(1),
         )
         .join(" ");
+}
+
+
+function setSimulationStatus(message) {
+    if (simulationStatus) {
+        simulationStatus.textContent = message;
+    }
 }
 
 
@@ -75,6 +87,7 @@ function syncRoomTabs() {
 
 
 function selectRoom(roomId) {
+    stopSimulation();
     selectedRoomId = roomId;
     formRoomId = null;
     roomSelect.value = roomId;
@@ -142,6 +155,43 @@ function candidateForRoom(room) {
     }
 
     return room.current || room.best || null;
+}
+
+
+function roomPiecesForSimulation(room) {
+    if (!room) {
+        return null;
+    }
+
+    const connection = continuousConnectionForRoom(room.id);
+    const splitPieces =
+        connection?.continuous?.room_pieces?.[room.id];
+
+    if (Array.isArray(splitPieces) && splitPieces.length > 0) {
+        return {
+            pieces: splitPieces,
+            boardScope: `connection:${connection.id}`,
+        };
+    }
+
+    const candidate = room.current || room.best;
+
+    if (!candidate?.pieces?.length) {
+        return null;
+    }
+
+    return {
+        pieces: candidate.pieces,
+        boardScope: `room:${room.id}`,
+    };
+}
+
+
+function boardRowIdentity(piece, boardScope) {
+    return [
+        scopedBoardIdentity(piece, boardScope),
+        piece.row,
+    ].join(":");
 }
 
 
@@ -655,6 +705,7 @@ settingsForm.addEventListener(
     "submit",
     async event => {
         event.preventDefault();
+        stopSimulation();
         validationMessage.textContent = "Working …";
         validationMessage.className = "form-message";
 
@@ -717,6 +768,7 @@ document
 document
     .getElementById("resetConfigButton")
     .addEventListener("click", async () => {
+        stopSimulation();
         try {
             const result = await roomPost("reset");
 
@@ -767,7 +819,10 @@ document
     .getElementById("restartButton")
     .addEventListener(
         "click",
-        () => roomPost("restart"),
+        () => {
+            stopSimulation();
+            return roomPost("restart");
+        },
     );
 
 
@@ -776,12 +831,23 @@ document
     .addEventListener(
         "click",
         async () => {
+            stopSimulation();
             await fetch(
                 "/api/restart-all",
                 {method: "POST"},
             );
         },
     );
+
+
+simulateButton.addEventListener("click", () => {
+    startSimulation();
+});
+
+
+stopSimulationButton.addEventListener("click", () => {
+    stopSimulation();
+});
 
 
 function colorWithAlpha(color, alpha) {
@@ -1273,39 +1339,64 @@ function drawPieces(
             scopedIdentity,
             piece.row,
         ].join(":");
+        const stepState = simulationStepState(
+            piece,
+            roomId,
+            boardScope,
+        );
         const sameSource =
             hoveredPhysicalBoardId !== null
             && scopedIdentity
                 === hoveredPhysicalBoardId;
         const isHovered = key === hoveredPieceKey;
 
-        context.fillStyle = isHovered
-            ? "#ffe082"
-            : sameSource
-                ? "#fff3bf"
-                : isShort
-                    ? "#ffd6d6"
-                    : (
-                        selected
-                            ? "#dff2df"
-                            : "#edf3ed"
-                    );
+        if (stepState === "future") {
+            context.fillStyle = isShort
+                ? "rgba(255, 214, 214, 0.35)"
+                : (
+                    selected
+                        ? "rgba(223, 242, 223, 0.34)"
+                        : "rgba(237, 243, 237, 0.28)"
+                );
+            context.strokeStyle = "rgba(102, 122, 102, 0.55)";
+            context.lineWidth = 1;
+        } else if (stepState === "active") {
+            context.fillStyle = isHovered
+                ? "#ffd166"
+                : "#ffefb0";
+            context.strokeStyle = isHovered
+                ? "#9a5a00"
+                : "#ba7a00";
+            context.lineWidth = isHovered ? 3 : 2.4;
+        } else {
+            context.fillStyle = isHovered
+                ? "#ffe082"
+                : sameSource
+                    ? "#fff3bf"
+                    : isShort
+                        ? "#ffd6d6"
+                        : (
+                            selected
+                                ? "#dff2df"
+                                : "#edf3ed"
+                        );
 
-        context.strokeStyle = isHovered
-            ? "#b26a00"
-            : sameSource
-                ? "#d39e00"
-                : isShort
-                    ? "#b00020"
-                    : "#667a66";
+            context.strokeStyle = isHovered
+                ? "#b26a00"
+                : sameSource
+                    ? "#d39e00"
+                    : isShort
+                        ? "#b00020"
+                        : "#667a66";
 
-        context.lineWidth = isHovered
-            ? 3
-            : sameSource
-                ? 2
-                : isShort
+            context.lineWidth = isHovered
+                ? 3
+                : sameSource
                     ? 2
-                    : 0.8;
+                    : isShort
+                        ? 2
+                        : 0.8;
+        }
 
         const screenX = x(piece.x1);
         const screenY = y(piece.y1);
@@ -1326,6 +1417,7 @@ function drawPieces(
             piecesByBoardRow.get(boardRowKey) || [],
             x,
             y,
+            stepState,
         );
 
         renderedPieceHitboxes.push({
@@ -1348,6 +1440,11 @@ function drawPieces(
             x,
             y,
             scale,
+            simulationStepState(
+                anchor.piece,
+                roomId,
+                boardScope,
+            ),
         );
     }
 }
@@ -1450,6 +1547,7 @@ function drawPieceOutline(
     boardPieces,
     x,
     y,
+    stepState = "inactive",
 ) {
     const epsilon = 1e-6;
     const topBlocked = [];
@@ -1497,6 +1595,12 @@ function drawPieceOutline(
                 otherPiece.y2,
             ]);
         }
+    }
+
+    context.save();
+
+    if (stepState === "future") {
+        context.setLineDash([6, 5]);
     }
 
     drawVisibleLineSegments(
@@ -1567,6 +1671,8 @@ function drawPieceOutline(
                 y(segmentEnd),
             ),
     );
+
+    context.restore();
 }
 
 
@@ -1587,6 +1693,228 @@ function layingVector(room) {
     return startCorner.startsWith("lower")
         ? {x: 0, y: -1}
         : {x: 0, y: 1};
+}
+
+
+function compareAlongDirection(first, second, room) {
+    const direction = layingVector(room);
+
+    if (Math.abs(direction.x) > 0) {
+        const firstValue =
+            direction.x > 0 ? first.x1 : first.x2;
+        const secondValue =
+            direction.x > 0 ? second.x1 : second.x2;
+
+        if (firstValue !== secondValue) {
+            return direction.x > 0
+                ? firstValue - secondValue
+                : secondValue - firstValue;
+        }
+    } else {
+        const firstValue =
+            direction.y > 0 ? first.y1 : first.y2;
+        const secondValue =
+            direction.y > 0 ? second.y1 : second.y2;
+
+        if (firstValue !== secondValue) {
+            return direction.y > 0
+                ? firstValue - secondValue
+                : secondValue - firstValue;
+        }
+    }
+
+    return Number(first.source_board_index || 0)
+        - Number(second.source_board_index || 0);
+}
+
+
+function buildSimulationSteps(room) {
+    const simulationPieces =
+        roomPiecesForSimulation(room);
+
+    if (!simulationPieces) {
+        return [];
+    }
+
+    const stepsByBoardRow = new Map();
+
+    for (const piece of simulationPieces.pieces) {
+        const key = boardRowIdentity(
+            piece,
+            simulationPieces.boardScope,
+        );
+        const existing = stepsByBoardRow.get(key);
+
+        if (existing) {
+            existing.pieces.push(piece);
+            if (
+                compareAlongDirection(
+                    piece,
+                    existing.anchor,
+                    room,
+                ) < 0
+            ) {
+                existing.anchor = piece;
+            }
+            continue;
+        }
+
+        stepsByBoardRow.set(key, {
+            key,
+            roomId: room.id,
+            boardScope: simulationPieces.boardScope,
+            row: Number(piece.row || 0),
+            anchor: piece,
+            pieces: [piece],
+        });
+    }
+
+    return [...stepsByBoardRow.values()].sort(
+        (first, second) => {
+            if (first.row !== second.row) {
+                return first.row - second.row;
+            }
+
+            return compareAlongDirection(
+                first.anchor,
+                second.anchor,
+                room,
+            );
+        },
+    );
+}
+
+
+function simulationStepDelayMs() {
+    const value = Number(simulateDelayInput?.value);
+
+    if (!Number.isFinite(value)) {
+        return 400;
+    }
+
+    return Math.max(50, Math.round(value));
+}
+
+
+function stopSimulation(options = {}) {
+    const preserveMessage =
+        options.preserveMessage || false;
+
+    if (simulationRun?.timerId) {
+        window.clearTimeout(simulationRun.timerId);
+    }
+
+    simulationRun = null;
+
+    if (!preserveMessage) {
+        setSimulationStatus("Simulation idle.");
+    }
+
+    draw();
+}
+
+
+function simulationStepState(
+    piece,
+    roomId,
+    boardScope,
+) {
+    if (
+        !simulationRun
+        || simulationRun.roomId !== roomId
+    ) {
+        return "inactive";
+    }
+
+    const stepKey = boardRowIdentity(
+        piece,
+        boardScope,
+    );
+    const index =
+        simulationRun.stepIndexByKey.get(stepKey);
+
+    if (index === undefined) {
+        return "inactive";
+    }
+
+    if (index < simulationRun.activeIndex) {
+        return "completed";
+    }
+
+    if (index === simulationRun.activeIndex) {
+        return "active";
+    }
+
+    return "future";
+}
+
+
+function startSimulation() {
+    const room = selectedRoom();
+    const steps = buildSimulationSteps(room);
+
+    if (!room || !steps.length) {
+        stopSimulation({preserveMessage: true});
+        setSimulationStatus(
+            "No finished layout is available to simulate yet.",
+        );
+        return;
+    }
+
+    stopSimulation({preserveMessage: true});
+
+    simulationRun = {
+        roomId: room.id,
+        steps,
+        activeIndex: 0,
+        stepIndexByKey: new Map(
+            steps.map((step, index) => [step.key, index]),
+        ),
+        timerId: null,
+    };
+
+    const delayMs = simulationStepDelayMs();
+
+    const tick = () => {
+        if (!simulationRun) {
+            return;
+        }
+
+        const currentStep =
+            simulationRun.steps[
+                simulationRun.activeIndex
+            ];
+        const currentNumber =
+            simulationRun.activeIndex + 1;
+        const total =
+            simulationRun.steps.length;
+
+        setSimulationStatus(
+            `Simulating ${currentNumber}/${total}: row ${currentStep.row}, board ${boardOrderLabel(currentStep.anchor)}.`,
+        );
+        draw();
+
+        if (currentNumber >= total) {
+            setSimulationStatus(
+                `Simulation finished: ${total} board placements shown.`,
+            );
+            simulationRun = null;
+            draw();
+            return;
+        }
+
+        simulationRun.timerId =
+            window.setTimeout(() => {
+                if (!simulationRun) {
+                    return;
+                }
+
+                simulationRun.activeIndex += 1;
+                tick();
+            }, delayMs);
+    };
+
+    tick();
 }
 
 
@@ -1636,6 +1964,7 @@ function drawBoardAnnotation(
     x,
     y,
     scale,
+    stepState = "inactive",
 ) {
     const screenX = x(piece.x1);
     const screenY = y(piece.y1);
@@ -1648,6 +1977,10 @@ function drawBoardAnnotation(
         screenWidth < 34
         || screenHeight < 16
     ) {
+        return;
+    }
+
+    if (stepState === "future") {
         return;
     }
 
@@ -1696,8 +2029,12 @@ function drawBoardAnnotation(
         Math.min(availableLength, 22),
     );
 
-    context.fillStyle = "rgba(255, 255, 255, 0.82)";
-    context.strokeStyle = "rgba(17, 24, 39, 0.72)";
+    context.fillStyle = stepState === "active"
+        ? "rgba(255, 248, 220, 0.96)"
+        : "rgba(255, 255, 255, 0.82)";
+    context.strokeStyle = stepState === "active"
+        ? "rgba(154, 90, 0, 0.88)"
+        : "rgba(17, 24, 39, 0.72)";
     context.lineWidth = 1;
     context.beginPath();
     context.roundRect(
@@ -1710,7 +2047,9 @@ function drawBoardAnnotation(
     context.fill();
     context.stroke();
 
-    context.fillStyle = "rgba(17, 24, 39, 0.92)";
+    context.fillStyle = stepState === "active"
+        ? "rgba(120, 66, 18, 0.95)"
+        : "rgba(17, 24, 39, 0.92)";
     context.fillText(
         label,
         centerX,
@@ -1723,8 +2062,12 @@ function drawBoardAnnotation(
         const arrowEndX = arrowStartX + direction.x * arrowLength;
         const arrowEndY = arrowStartY + direction.y * arrowLength;
 
-        context.strokeStyle = "rgba(17, 24, 39, 0.9)";
-        context.fillStyle = "rgba(17, 24, 39, 0.9)";
+        context.strokeStyle = stepState === "active"
+            ? "rgba(154, 90, 0, 0.96)"
+            : "rgba(17, 24, 39, 0.9)";
+        context.fillStyle = stepState === "active"
+            ? "rgba(154, 90, 0, 0.96)"
+            : "rgba(17, 24, 39, 0.9)";
         context.lineWidth = 1.5;
         context.beginPath();
         context.moveTo(

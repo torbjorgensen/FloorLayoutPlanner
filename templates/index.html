@@ -59,7 +59,20 @@
                         <p class="eyebrow">Layout View</p>
                         <h2>Board field</h2>
                     </div>
-                    <div class="legend-pillbar">
+                    <div class="canvas-header-tools">
+                        <div class="simulation-controls">
+                            <label class="simulation-label" for="simulateDelayInput">
+                                Step delay
+                            </label>
+                            <input id="simulateDelayInput" type="number" min="50" step="50" value="400">
+                            <button id="simulateButton" type="button" class="action-button action-button-primary">
+                                Simulate
+                            </button>
+                            <button id="stopSimulationButton" type="button" class="action-button">
+                                Stop
+                            </button>
+                        </div>
+                        <div class="legend-pillbar">
                         <span class="legend-pill">
                             <span class="legend-swatch legend-swatch-room"></span>
                             Active room
@@ -73,6 +86,7 @@
                             Short piece warning
                         </span>
                     </div>
+                    </div>
                 </div>
                 <div class="canvas-stage">
                     <canvas id="floorCanvas"></canvas>
@@ -81,6 +95,9 @@
                         <p class="overlay-copy">
                             Each board placement shows its laying order and arrow direction.
                             Hover pieces to inspect shared physical-board identity.
+                        </p>
+                        <p id="simulationStatus" class="overlay-copy overlay-copy-strong">
+                            Simulation idle.
                         </p>
                     </div>
                 </div>

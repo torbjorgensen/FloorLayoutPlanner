@@ -286,6 +286,41 @@ select {
     gap: 10px;
 }
 
+.canvas-header-tools {
+    display: grid;
+    gap: 12px;
+    justify-items: end;
+}
+
+.simulation-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(44, 62, 53, 0.08);
+}
+
+.simulation-label {
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.simulation-controls input {
+    width: 92px;
+    border: 1px solid rgba(44, 62, 53, 0.15);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.84);
+    padding: 10px 12px;
+    color: var(--ink);
+}
+
 .legend-pill {
     display: inline-flex;
     align-items: center;
@@ -353,6 +388,12 @@ select {
     color: rgba(255, 250, 245, 0.72);
     font-size: 0.87rem;
     line-height: 1.5;
+}
+
+.overlay-copy-strong {
+    margin-top: 10px;
+    color: rgba(255, 250, 245, 0.92);
+    font-weight: 700;
 }
 
 .room-tab-grid {
@@ -639,6 +680,14 @@ summary {
     }
 
     .legend-pillbar {
+        justify-content: flex-start;
+    }
+
+    .canvas-header-tools {
+        justify-items: stretch;
+    }
+
+    .simulation-controls {
         justify-content: flex-start;
     }
 
