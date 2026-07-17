@@ -1,0 +1,24 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    MPLCONFIGDIR=/tmp/matplotlib
+
+WORKDIR /app
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+COPY pergo_planner ./pergo_planner
+
+RUN useradd --create-home --uid 10001 planner \
+    && mkdir -p /data /tmp/matplotlib \
+    && chown -R planner:planner /data \
+    && chmod 1777 /tmp/matplotlib
+
+USER planner
+
+EXPOSE 8765
+
+CMD ["gunicorn", "--bind", "0.0.0.0:8765", "--workers", "1", "--threads", "8", "--timeout", "300", "--access-logfile", "-", "pergo_planner.web.production:app"]

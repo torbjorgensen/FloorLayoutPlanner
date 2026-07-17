@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .planner import Piece
 
-Score = tuple[int, int, int, int, int, float, float]
+Score = tuple[int | float, ...]
 TimingValue = float | int
 
 
@@ -26,6 +26,7 @@ class Candidate:
     row_offsets: dict[int, float]
     score: Score
     timings: dict[str, TimingValue]
+    material_metrics: dict[str, float | int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,7 @@ class CandidateInput:
     minimum_row_width: float
     preferred_minimum_row_width: float
     optimization_step: float
+    saw_kerf_mm: float
     base_offset: float
     row_width_offset: float
     start_corner: str = "upper_left"

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from flask import Flask, redirect, send_from_directory
+from flask import Flask, jsonify, redirect, send_from_directory
 from flask_socketio import SocketIO
 
 from pergo_planner.web.config import load_config
@@ -26,6 +26,7 @@ class PlannerApplication:
     state: ProjectState
     output_dir: Path
     start_all: Callable[[dict[str, Any]], None]
+    shutdown: Callable[[], None]
 
 
 def create_app(config_path: Path, *, start_workers: bool = True) -> PlannerApplication:
@@ -81,6 +82,11 @@ def create_app(config_path: Path, *, start_workers: bool = True) -> PlannerAppli
             {"Content-Type": "text/html; charset=utf-8"},
         )
 
+    @app.get("/healthz")
+    def health():
+        """Report that the web process is ready to accept requests."""
+        return jsonify({"status": "ok"})
+
     @app.get("/")
     def index():
         return frontend_response()
@@ -94,6 +100,11 @@ def create_app(config_path: Path, *, start_workers: bool = True) -> PlannerAppli
 
     state_emitter = StateUpdateEmitter(socketio, socket_state_payload)
     register_state_socket_handlers(socketio, state_emitter)
+
+    def shutdown() -> None:
+        """Release timers and optimizer coordinators owned by this app."""
+        state_emitter.close()
+        workers.shutdown()
 
     register_command_routes(
         app,
@@ -114,4 +125,5 @@ def create_app(config_path: Path, *, start_workers: bool = True) -> PlannerAppli
         state=state,
         output_dir=output_dir,
         start_all=start_all,
+        shutdown=shutdown,
     )

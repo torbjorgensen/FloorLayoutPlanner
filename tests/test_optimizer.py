@@ -23,6 +23,7 @@ def candidate_input(floor) -> CandidateInput:
         minimum_row_width=60,
         preferred_minimum_row_width=100,
         optimization_step=200,
+        saw_kerf_mm=3.2,
         base_offset=0,
         row_width_offset=0,
     )
@@ -35,6 +36,8 @@ def test_fast_optimizer_returns_candidate(l_floor) -> None:
     assert candidate.pieces
     assert candidate.total_attempts == 1
     assert candidate.score
+    assert candidate.material_metrics["new_boards"] > 0
+    assert candidate.score[-4] == candidate.material_metrics["new_boards"]
     assert candidate.shortest_piece > 0
     assert candidate.narrowest_row_width > 0
 
@@ -55,6 +58,7 @@ def test_candidate_grid_count(l_floor) -> None:
     )
 
     assert len(inputs) == 16
+    assert {item.saw_kerf_mm for item in inputs} == {3.2}
     assert {item.total_attempts for item in inputs} == {16}
     assert [item.attempt for item in inputs] == list(range(1, 17))
 

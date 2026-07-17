@@ -363,6 +363,65 @@ select {
     background:
         linear-gradient(180deg, rgba(255, 251, 246, 0.97), rgba(248, 241, 231, 0.88));
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+    cursor: crosshair;
+}
+
+#floorCanvas:focus-visible {
+    outline: 3px solid rgba(25, 118, 210, 0.7);
+    outline-offset: 3px;
+}
+
+.board-inspection {
+    position: absolute;
+    z-index: 4;
+    width: min(280px, calc(100% - 24px));
+    padding: 12px 14px;
+    transform: translate(12px, calc(-100% - 12px));
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 14px;
+    background: rgba(20, 30, 26, 0.94);
+    color: #fffaf5;
+    box-shadow: var(--shadow-deep);
+    pointer-events: none;
+}
+
+.board-inspection > strong,
+.board-inspection > span {
+    display: block;
+}
+
+.board-inspection > span {
+    margin-top: 2px;
+    color: rgba(255, 250, 245, 0.72);
+    font-size: 0.8rem;
+}
+
+.board-inspection dl {
+    display: grid;
+    gap: 4px;
+    margin: 10px 0 0;
+}
+
+.board-inspection dl > div {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: 8px;
+}
+
+.board-inspection dt,
+.board-inspection dd {
+    margin: 0;
+    font-size: 0.78rem;
+}
+
+.board-inspection dt {
+    color: rgba(255, 250, 245, 0.6);
+}
+
+.board-inspection-warning {
+    margin-top: 9px !important;
+    color: #ffb4b4 !important;
+    font-weight: 700;
 }
 
 .canvas-overlay {

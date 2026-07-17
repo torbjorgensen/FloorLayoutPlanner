@@ -3,6 +3,7 @@ from __future__ import annotations
 from shapely.geometry import Polygon
 
 from .planner import Piece, create_row_fragments
+from .validation import length_meets_minimum, piece_meets_minimum_length
 
 
 def _row_joint_positions(
@@ -118,9 +119,13 @@ def evaluate_pieces(
             (10**9, 10**9, 10**9, 10**9, 10**9, 0.0, 0.0),
         )
 
-    short_count = sum(piece.length < minimum_piece_length for piece in pieces)
+    short_count = sum(
+        not piece_meets_minimum_length(piece, minimum_piece_length) for piece in pieces
+    )
     very_short_limit = min(100.0, minimum_piece_length)
-    very_short_count = sum(piece.length < very_short_limit for piece in pieces)
+    very_short_count = sum(
+        not length_meets_minimum(piece.length, very_short_limit) for piece in pieces
+    )
     shortest_piece = min(piece.length for piece in pieces)
 
     joint_violations = count_joint_violations(
@@ -144,11 +149,11 @@ def evaluate_pieces(
     )
 
     score = (
+        short_count,
+        very_short_count,
         joint_violations,
         very_narrow_count,
-        very_short_count,
         narrow_count,
-        short_count,
         -narrowest_width,
         -shortest_piece,
     )

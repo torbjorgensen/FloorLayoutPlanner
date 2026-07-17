@@ -28,6 +28,14 @@ export interface Candidate {
     row_offsets?: Record<string, number>;
     phase?: string;
     timings?: Record<string, number>;
+    material_metrics?: {
+        new_boards?: number;
+        exact_offcut_reuses?: number;
+        trimmed_offcut_reuses?: number;
+        cuts?: number;
+        kerf_waste_mm?: number;
+        discarded_mm?: number;
+    };
     pieces: Piece[];
 }
 
@@ -39,6 +47,7 @@ export interface RoomSettings {
         | "lower_left"
         | "lower_right";
     expansion_gap_mm: number;
+    saw_kerf_mm: number;
     minimum_piece_length_mm: number;
     minimum_joint_distance_mm: number;
     stagger_step_mm: number;

@@ -20,6 +20,13 @@ from pergo_planner.optimizer import (
     parallel_refine_generator,
 )
 from pergo_planner.renderer import plot_plan
+from pergo_planner.validation import (
+    InfeasibleLayoutError,
+    candidate_meets_minimum_length,
+    cut_plan_meets_minimum_length,
+    select_best_valid_candidate,
+    split_pieces_meet_minimum_lengths,
+)
 from pergo_planner.web.config import merged_settings
 from pergo_planner.web.outputs import write_piece_csv
 from pergo_planner.web.payloads import local_floor
@@ -31,6 +38,7 @@ class WorkerManager:
     room_by_id: Callable[[dict[str, Any], str], dict[str, Any]]
     start_room: Callable[[str, dict[str, Any]], None]
     start_all: Callable[[dict[str, Any]], None]
+    shutdown: Callable[[], None]
 
 
 def create_worker_manager(
@@ -39,6 +47,25 @@ def create_worker_manager(
     config_path: Path,
     notify_state_changed: Callable[[], None],
 ) -> WorkerManager:
+    shutdown_requested = threading.Event()
+    active_threads: set[threading.Thread] = set()
+    active_threads_lock = threading.Lock()
+
+    def start_background(target, *args) -> None:
+        """Start and track one optimizer coordinator thread."""
+
+        def run() -> None:
+            try:
+                target(*args)
+            finally:
+                with active_threads_lock:
+                    active_threads.discard(threading.current_thread())
+
+        thread = threading.Thread(target=run, daemon=True)
+        with active_threads_lock:
+            active_threads.add(thread)
+        thread.start()
+
     def room_by_id(config: dict[str, Any], room_id: str) -> dict[str, Any]:
         room = next(
             (item for item in config["rooms"] if item["id"] == room_id),
@@ -64,6 +91,12 @@ def create_worker_manager(
 
         room = room_by_id(config_snapshot, room_id)
         settings = merged_settings(config_snapshot, room)
+        minimum_length = float(settings["minimum_piece_length_mm"])
+        if not candidate_meets_minimum_length(best, minimum_length):
+            raise InfeasibleLayoutError(
+                f"Refusing to write invalid output for {room_id}: one or more "
+                f"pieces are shorter than {minimum_length:g} mm."
+            )
         floor = local_floor(config_snapshot, room)
 
         csv_path = output_dir / f"{room_id}_pieces.csv"
@@ -89,6 +122,7 @@ def create_worker_manager(
         try:
             room = room_by_id(config_snapshot, room_id)
             settings = merged_settings(config_snapshot, room)
+            minimum_length = float(settings["minimum_piece_length_mm"])
             board = config_snapshot["board"]
             floor = local_floor(config_snapshot, room)
 
@@ -99,7 +133,7 @@ def create_worker_manager(
                 orientation=settings["orientation"],
                 start_corner=settings["start_corner"],
                 stagger_step=float(settings["stagger_step_mm"]),
-                minimum_piece_length=float(settings["minimum_piece_length_mm"]),
+                minimum_piece_length=minimum_length,
                 minimum_joint_distance=float(settings["minimum_joint_distance_mm"]),
                 minimum_row_width=float(settings["minimum_row_width_mm"]),
                 preferred_minimum_row_width=float(
@@ -109,6 +143,7 @@ def create_worker_manager(
                 row_width_optimization_step=float(
                     settings["row_width_optimization_step_mm"]
                 ),
+                saw_kerf_mm=float(board.get("saw_kerf_mm", 3.2)),
             )
 
             workers = int(settings["optimizer_workers"])
@@ -177,6 +212,8 @@ def create_worker_manager(
                 inputs=inputs,
                 workers=workers,
             ):
+                if shutdown_requested.is_set():
+                    return
                 coarse_completed += 1
                 coarse_results.append(candidate)
 
@@ -200,7 +237,8 @@ def create_worker_manager(
                     if generation != room_state.generation:
                         return
 
-                    is_new_best = (
+                    is_valid = candidate_meets_minimum_length(candidate, minimum_length)
+                    is_new_best = is_valid and (
                         room_state.best is None
                         or candidate.score < room_state.best.score
                     )
@@ -247,16 +285,17 @@ def create_worker_manager(
                 room_state.profile["phase"] = "refine"
                 room_state.profile["refine_total"] = len(refine_inputs)
 
-            # Reset best before refinement so the best fully refined
-            # candidate is preferred over coarse candidates.
-            refined_best: Candidate | None = None
+            refined_results: list[Candidate] = []
             refine_completed = 0
 
             for candidate in parallel_refine_generator(
                 inputs=refine_inputs,
                 workers=min(workers, max(1, len(refine_inputs))),
             ):
+                if shutdown_requested.is_set():
+                    return
                 refine_completed += 1
+                refined_results.append(candidate)
 
                 while True:
                     with state.lock:
@@ -272,20 +311,16 @@ def create_worker_manager(
 
                     time.sleep(0.08)
 
-                if refined_best is None or candidate.score < refined_best.score:
-                    refined_best = candidate
-
                 with state.lock:
                     room_state = state.rooms[room_id]
 
                     if generation != room_state.generation:
                         return
 
-                    is_new_best = (
+                    is_valid = candidate_meets_minimum_length(candidate, minimum_length)
+                    is_new_best = is_valid and (
                         room_state.best is None
                         or candidate.score < room_state.best.score
-                        or candidate.phase == "refine"
-                        and room_state.best.phase == "coarse"
                     )
 
                     if is_new_best:
@@ -304,12 +339,13 @@ def create_worker_manager(
                 if delay_ms > 0:
                     time.sleep(delay_ms / 1000)
 
-            if refined_best is not None:
-                with state.lock:
-                    room_state = state.rooms[room_id]
-
-                    if generation == room_state.generation:
-                        room_state.best = refined_best
+            final_best = select_best_valid_candidate(
+                [*coarse_results, *refined_results], minimum_length
+            )
+            with state.lock:
+                room_state = state.rooms[room_id]
+                if generation == room_state.generation:
+                    room_state.best = final_best
 
             save_room_best(
                 room_id,
@@ -362,6 +398,11 @@ def create_worker_manager(
                     "continuous_then_cut requires the same start corner in both rooms."
                 )
             orientation = settings_a["orientation"]
+            minimum_length = float(settings_a["minimum_piece_length_mm"])
+            minimum_lengths = {
+                connection.room_a: minimum_length,
+                connection.room_b: float(settings_b["minimum_piece_length_mm"]),
+            }
             board = config_snapshot["board"]
             floor = build_continuous_floor(
                 room_a,
@@ -376,7 +417,7 @@ def create_worker_manager(
                 orientation=orientation,
                 start_corner=settings_a["start_corner"],
                 stagger_step=float(settings_a["stagger_step_mm"]),
-                minimum_piece_length=float(settings_a["minimum_piece_length_mm"]),
+                minimum_piece_length=minimum_length,
                 minimum_joint_distance=float(settings_a["minimum_joint_distance_mm"]),
                 minimum_row_width=float(settings_a["minimum_row_width_mm"]),
                 preferred_minimum_row_width=float(
@@ -386,6 +427,7 @@ def create_worker_manager(
                 row_width_optimization_step=float(
                     settings_a["row_width_optimization_step_mm"]
                 ),
+                saw_kerf_mm=float(board.get("saw_kerf_mm", 3.2)),
             )
             workers = int(settings_a["optimizer_workers"])
             top_n = min(int(settings_a["local_optimize_top_n"]), len(inputs))
@@ -439,15 +481,18 @@ def create_worker_manager(
             )
 
             coarse_ranked = []
+            refined_ranked = []
             coarse_completed = 0
             for candidate in parallel_coarse_generator(inputs=inputs, workers=workers):
+                if shutdown_requested.is_set():
+                    return
                 if generation != continuous_state.generation:
                     return
                 cut_plan = best_cut_plan(
                     candidate,
                     connection,
                     orientation,
-                    float(settings_a["minimum_piece_length_mm"]),
+                    minimum_length,
                     float(settings_a["minimum_row_width_mm"]),
                     float(settings_a["preferred_minimum_row_width_mm"]),
                 )
@@ -471,7 +516,14 @@ def create_worker_manager(
                 raise ValueError(
                     "No candidates were generated for the continuous floor."
                 )
-            coarse_ranked.sort(key=lambda item: item[0])
+
+            def item_is_valid(item) -> bool:
+                _, candidate, cut_plan = item
+                return candidate_meets_minimum_length(
+                    candidate, minimum_length
+                ) and cut_plan_meets_minimum_length(cut_plan)
+
+            coarse_ranked.sort(key=lambda item: (not item_is_valid(item), item[0]))
             input_lookup = {
                 (item.base_offset, item.row_width_offset): item for item in inputs
             }
@@ -479,7 +531,6 @@ def create_worker_manager(
                 input_lookup[(candidate.base_offset, candidate.row_width_offset)]
                 for _, candidate, _ in coarse_ranked[:top_n]
             ]
-            best_item = coarse_ranked[0]
             refine_completed = 0
             update_continuous_progress(
                 phase="refine",
@@ -492,11 +543,13 @@ def create_worker_manager(
                 inputs=refine_inputs,
                 workers=min(workers, max(1, len(refine_inputs))),
             ):
+                if shutdown_requested.is_set():
+                    return
                 cut_plan = best_cut_plan(
                     candidate,
                     connection,
                     orientation,
-                    float(settings_a["minimum_piece_length_mm"]),
+                    minimum_length,
                     float(settings_a["minimum_row_width_mm"]),
                     float(settings_a["preferred_minimum_row_width_mm"]),
                 )
@@ -505,8 +558,7 @@ def create_worker_manager(
                     candidate,
                     cut_plan,
                 )
-                if item[0] < best_item[0]:
-                    best_item = item
+                refined_ranked.append(item)
                 refine_completed += 1
                 with state.lock:
                     continuous_state.current = candidate
@@ -526,18 +578,43 @@ def create_worker_manager(
                 refine_completed=refine_total,
             )
 
+            ranked_items = sorted(
+                [*coarse_ranked, *refined_ranked],
+                key=lambda item: (not item_is_valid(item), item[0]),
+            )
+            selected_item = None
+            selected_room_pieces = None
+            for item in ranked_items:
+                if not item_is_valid(item):
+                    continue
+                _, candidate, cut_plan = item
+                room_pieces = split_candidate_at_cut(
+                    candidate=candidate,
+                    room_a=room_a,
+                    room_b=room_b,
+                    connection=connection,
+                    cut_plan=cut_plan,
+                    orientation=orientation,
+                )
+                if split_pieces_meet_minimum_lengths(room_pieces, minimum_lengths):
+                    selected_item = item
+                    selected_room_pieces = room_pieces
+                    break
+
+            if selected_item is None or selected_room_pieces is None:
+                raise InfeasibleLayoutError(
+                    "No valid continuous layout and expansion-gap position "
+                    "satisfies the configured minimum piece lengths after "
+                    "splitting the finished rooms."
+                )
+
+            best_item = selected_item
+
             with state.lock:
                 continuous_state.best = best_item[1]
                 continuous_state.current = best_item[1]
                 continuous_state.cut_plan = best_item[2]
-                continuous_state.room_pieces = split_candidate_at_cut(
-                    candidate=best_item[1],
-                    room_a=room_a,
-                    room_b=room_b,
-                    connection=connection,
-                    cut_plan=best_item[2],
-                    orientation=orientation,
-                )
+                continuous_state.room_pieces = selected_room_pieces
                 continuous_state.running = False
                 continuous_state.finished = True
                 continuous_state.profile.update(
@@ -567,6 +644,8 @@ def create_worker_manager(
             notify_state_changed()
 
     def start_continuous(connection, config: dict[str, Any]) -> None:
+        if shutdown_requested.is_set():
+            return
         continuous_state = state.continuous[connection.connection_id]
         continuous_state.generation += 1
         generation = continuous_state.generation
@@ -593,13 +672,13 @@ def create_worker_manager(
             "message": "Starting transition calculation",
         }
         notify_state_changed()
-        threading.Thread(
-            target=continuous_worker,
-            args=(connection, generation, copy.deepcopy(config)),
-            daemon=True,
-        ).start()
+        start_background(
+            continuous_worker, connection, generation, copy.deepcopy(config)
+        )
 
     def start_room(room_id: str, config: dict[str, Any]) -> None:
+        if shutdown_requested.is_set():
+            return
         room = room_by_id(config, room_id)
         local_floor(config, room)  # validate synchronously
 
@@ -634,11 +713,7 @@ def create_worker_manager(
             }
 
         notify_state_changed()
-        threading.Thread(
-            target=optimizer_worker,
-            args=(room_id, generation, copy.deepcopy(config)),
-            daemon=True,
-        ).start()
+        start_background(optimizer_worker, room_id, generation, copy.deepcopy(config))
 
     def start_all(config: dict[str, Any]) -> None:
         for room in config["rooms"]:
@@ -647,8 +722,26 @@ def create_worker_manager(
             if connection.connection_type == "continuous_then_cut":
                 start_continuous(connection, config)
 
+    def shutdown() -> None:
+        """Cancel coordinators and briefly wait for them to release resources."""
+        shutdown_requested.set()
+        with state.lock:
+            for room in state.rooms.values():
+                room.generation += 1
+                room.running = False
+            for continuous in state.continuous.values():
+                continuous.generation += 1
+                continuous.running = False
+
+        with active_threads_lock:
+            threads = list(active_threads)
+        deadline = time.monotonic() + 2.0
+        for thread in threads:
+            thread.join(timeout=max(0.0, deadline - time.monotonic()))
+
     return WorkerManager(
         room_by_id=room_by_id,
         start_room=start_room,
         start_all=start_all,
+        shutdown=shutdown,
     )

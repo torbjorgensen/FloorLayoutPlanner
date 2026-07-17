@@ -4,6 +4,7 @@ from shapely.geometry import Polygon
 
 from .planner import Piece, create_plan
 from .scorer import evaluate_pieces
+from .validation import piece_meets_minimum_length
 
 
 def _problem_rows(
@@ -12,7 +13,11 @@ def _problem_rows(
 ) -> list[int]:
     """Return rows containing pieces shorter than the configured minimum."""
     return sorted(
-        {piece.row for piece in pieces if piece.length < minimum_piece_length}
+        {
+            piece.row
+            for piece in pieces
+            if not piece_meets_minimum_length(piece, minimum_piece_length)
+        }
     )
 
 
@@ -29,6 +34,7 @@ def improve_problem_rows(
     minimum_row_width: float,
     preferred_minimum_row_width: float,
     optimization_step: float,
+    saw_kerf_mm: float,
     base_offset: float,
     row_width_offset: float,
     initial_pieces: list[Piece],
@@ -87,6 +93,7 @@ def improve_problem_rows(
                     base_offset=base_offset,
                     row_offsets=trial_offsets,
                     row_width_offset=row_width_offset,
+                    saw_kerf_mm=saw_kerf_mm,
                 )
 
                 *_, trial_score = evaluate_pieces(
