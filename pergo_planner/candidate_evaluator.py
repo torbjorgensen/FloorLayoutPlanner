@@ -13,13 +13,13 @@ from .scorer import evaluate_pieces
 def _candidate_from_evaluation(
     *,
     data: CandidateInput,
+    floor,
     phase: str,
     pieces: list[Piece],
     row_offsets: dict[int, float],
     timings: dict[str, float],
 ) -> Candidate:
     evaluation_started = time.perf_counter()
-    floor = wkb.loads(data.floor_wkb)
 
     (
         short_count,
@@ -90,6 +90,7 @@ def evaluate_candidate_fast(
 
     candidate = _candidate_from_evaluation(
         data=data,
+        floor=floor,
         phase="coarse",
         pieces=pieces,
         row_offsets={},
@@ -155,6 +156,7 @@ def evaluate_candidate_full(
 
     candidate = _candidate_from_evaluation(
         data=data,
+        floor=floor,
         phase="refine",
         pieces=pieces,
         row_offsets=row_offsets,

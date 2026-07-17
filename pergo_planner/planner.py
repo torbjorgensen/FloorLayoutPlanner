@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from functools import lru_cache
 from itertools import count
 
+from shapely import wkb
 from shapely.affinity import scale
 from shapely.geometry import GeometryCollection, MultiPolygon, Polygon, box
 
@@ -606,6 +608,41 @@ def _pieces_from_placements(
     return pieces
 
 
+@lru_cache(maxsize=512)
+def _cached_layout_inputs(
+    floor_wkb: bytes,
+    orientation: str,
+    start_corner: str,
+    board_width: float,
+    row_width_offset: float,
+) -> tuple[tuple[RowFragment, ...], tuple[float, float, float, float], bool]:
+    flip_longitudinal, flip_transverse = _start_corner_flags(
+        orientation,
+        start_corner,
+    )
+    floor = wkb.loads(floor_wkb)
+    work_floor, swapped = rotate_polygon_for_orientation(
+        floor,
+        orientation,
+    )
+    transformed_floor = _flip_work_floor(
+        work_floor,
+        flip_longitudinal=flip_longitudinal,
+        flip_transverse=flip_transverse,
+    )
+    fragments = build_row_fragments(
+        work_floor=transformed_floor,
+        board_width=board_width,
+        row_width_offset=row_width_offset,
+    )
+
+    return (
+        tuple(fragments),
+        transformed_floor.bounds,
+        swapped,
+    )
+
+
 def create_plan(
     floor: Polygon,
     board_length: float,
@@ -644,19 +681,12 @@ def create_plan(
         orientation,
         start_corner,
     )
-    work_floor, swapped = rotate_polygon_for_orientation(
-        floor,
+    fragments, transformed_bounds, swapped = _cached_layout_inputs(
+        floor.wkb,
         orientation,
-    )
-    transformed_floor = _flip_work_floor(
-        work_floor,
-        flip_longitudinal=flip_longitudinal,
-        flip_transverse=flip_transverse,
-    )
-    fragments = build_row_fragments(
-        work_floor=transformed_floor,
+        start_corner,
         board_width=board_width,
-        row_width_offset=(row_width_offset),
+        row_width_offset=row_width_offset,
     )
     fragments_by_row: dict[
         int,
@@ -750,7 +780,7 @@ def create_plan(
 
         active_offcuts = next_offcuts
 
-    min_x, min_y, max_x, max_y = transformed_floor.bounds
+    min_x, min_y, max_x, max_y = transformed_bounds
 
     return [
         unrotate_piece(
@@ -812,21 +842,14 @@ def create_row_fragments(
         orientation,
         start_corner,
     )
-    work_floor, swapped = rotate_polygon_for_orientation(
-        floor,
+    fragments, transformed_bounds, swapped = _cached_layout_inputs(
+        floor.wkb,
         orientation,
-    )
-    transformed_floor = _flip_work_floor(
-        work_floor,
-        flip_longitudinal=flip_longitudinal,
-        flip_transverse=flip_transverse,
-    )
-    fragments = build_row_fragments(
-        work_floor=transformed_floor,
+        start_corner,
         board_width=board_width,
-        row_width_offset=(row_width_offset),
+        row_width_offset=row_width_offset,
     )
-    min_x, min_y, max_x, max_y = transformed_floor.bounds
+    min_x, min_y, max_x, max_y = transformed_bounds
 
     return [
         unrotate_fragment(
