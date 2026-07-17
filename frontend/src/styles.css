@@ -27,3 +27,15 @@
 .MuiButton-root.action-button {
     font-family: inherit;
 }
+
+.topbar-note[data-status="reconnecting"],
+.topbar-note[data-status="disconnected"] {
+    color: #8f351f;
+    background: rgba(255, 213, 198, 0.85);
+}
+
+.topbar-note[data-status="reconnecting"] .note-dot,
+.topbar-note[data-status="disconnected"] .note-dot {
+    background: #d96940;
+    box-shadow: 0 0 0 6px rgba(217, 105, 64, 0.14);
+}

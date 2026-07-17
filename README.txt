@@ -6,6 +6,7 @@
 - Frontend: React + TypeScript + Vite
 - Component library: Material UI
 - Rendering: HTML canvas with client-side laying simulation
+- Live state transport: Socket.IO over WebSocket
 
 ## Install
 
@@ -98,4 +99,10 @@ Frontend changes run the Vitest suite and production build automatically. To run
 
 ```bash
 pre-commit run --all-files
+```
+
+For a frontend that connects directly to Flask instead of using the Vite proxy, configure allowed Socket.IO origins explicitly:
+
+```bash
+SOCKETIO_ALLOWED_ORIGINS="https://your-forwarded-host.example" python laminate_planner.py stue_project.json
 ```

@@ -578,9 +578,18 @@ def main() -> None:
     initial_config = load_config(args.config)
     state = ProjectState(initial_config)
     app = Flask(__name__)
-    socketio = SocketIO(app, async_mode="threading")
     frontend_dist = Path(__file__).resolve().parent / "frontend" / "dist"
     frontend_dev_url = os.environ.get("FRONTEND_DEV_URL", "").rstrip("/")
+    socket_origins_value = os.environ.get("SOCKETIO_ALLOWED_ORIGINS", "")
+    socket_allowed_origins = [
+        origin.strip() for origin in socket_origins_value.split(",") if origin.strip()
+    ] or None
+    socketio = SocketIO(
+        app,
+        async_mode="threading",
+        always_connect=True,
+        cors_allowed_origins=socket_allowed_origins,
+    )
 
     output_dir = args.config.parent / f"{args.config.stem}_output"
     output_dir.mkdir(exist_ok=True)
@@ -1227,8 +1236,8 @@ def main() -> None:
     def frontend(path: str):
         return frontend_response(path)
 
-    @app.get("/api/state")
-    def api_state():
+    # Shared serializer for initial snapshots and pushed updates.
+    def build_state_payload() -> dict[str, Any]:
         with state.lock:
             config_snapshot = copy.deepcopy(state.active_config)
             rooms_payload = [
@@ -1249,67 +1258,58 @@ def main() -> None:
             "max_y": max(item["max_y"] for item in all_bounds),
         }
 
-        return jsonify(
-            {
-                "project_name": config_snapshot["project_name"],
-                "board": config_snapshot["board"],
-                "rooms": rooms_payload,
-                "bounds": project_bounds,
-                "output_dir": str(output_dir),
-                "connections": [
-                    {
-                        **connection_payload(connection),
-                        "continuous": (
-                            {
-                                "running": state.continuous[
+        return {
+            "project_name": config_snapshot["project_name"],
+            "board": config_snapshot["board"],
+            "rooms": rooms_payload,
+            "bounds": project_bounds,
+            "output_dir": str(output_dir),
+            "connections": [
+                {
+                    **connection_payload(connection),
+                    "continuous": (
+                        {
+                            "running": state.continuous[
+                                connection.connection_id
+                            ].running,
+                            "finished": state.continuous[
+                                connection.connection_id
+                            ].finished,
+                            "error": state.continuous[connection.connection_id].error,
+                            "candidate": state.candidate_payload(
+                                state.continuous[connection.connection_id].current
+                                or state.continuous[connection.connection_id].best
+                            ),
+                            "profile": copy.deepcopy(
+                                state.continuous[connection.connection_id].profile
+                            ),
+                            "room_pieces": {
+                                room_id: [
+                                    state.piece_payload(piece) for piece in pieces
+                                ]
+                                for room_id, pieces in state.continuous[
                                     connection.connection_id
-                                ].running,
-                                "finished": state.continuous[
-                                    connection.connection_id
-                                ].finished,
-                                "error": state.continuous[
-                                    connection.connection_id
-                                ].error,
-                                "candidate": state.candidate_payload(
-                                    state.continuous[connection.connection_id].current
-                                    or state.continuous[connection.connection_id].best
-                                ),
-                                "profile": copy.deepcopy(
-                                    state.continuous[connection.connection_id].profile
-                                ),
-                                "room_pieces": {
-                                    room_id: [
-                                        state.piece_payload(piece) for piece in pieces
-                                    ]
-                                    for room_id, pieces in state.continuous[
-                                        connection.connection_id
-                                    ].room_pieces.items()
-                                },
-                                "cut_plan": (
-                                    cut_plan_payload(
-                                        state.continuous[
-                                            connection.connection_id
-                                        ].cut_plan
-                                    )
-                                    if state.continuous[
-                                        connection.connection_id
-                                    ].cut_plan
-                                    is not None
-                                    else None
-                                ),
-                            }
-                            if connection.connection_type == "continuous_then_cut"
-                            else None
-                        ),
-                    }
-                    for connection in state.connections
-                ],
-            }
-        )
+                                ].room_pieces.items()
+                            },
+                            "cut_plan": (
+                                cut_plan_payload(
+                                    state.continuous[connection.connection_id].cut_plan
+                                )
+                                if state.continuous[connection.connection_id].cut_plan
+                                is not None
+                                else None
+                            ),
+                        }
+                        if connection.connection_type == "continuous_then_cut"
+                        else None
+                    ),
+                }
+                for connection in state.connections
+            ],
+        }
 
     def socket_state_payload() -> dict[str, Any]:
-        with app.app_context():
-            return api_state().get_json()
+        return build_state_payload()
 
     state_emitter = StateUpdateEmitter(socketio, socket_state_payload)
     register_state_socket_handlers(socketio, state_emitter)
