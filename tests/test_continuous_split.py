@@ -4,11 +4,13 @@ import pytest
 from shapely.geometry import box
 from shapely.ops import unary_union
 
-from pergo_planner.continuous_solver import (
+from floor_layout_planner.continuous_solver import (
     build_continuous_floor,
+    global_room_polygon,
+    passage_polygon,
     split_candidate_at_cut,
 )
-from pergo_planner.models import (
+from floor_layout_planner.models import (
     Candidate,
     CutPlan,
     CutSettings,
@@ -16,7 +18,7 @@ from pergo_planner.models import (
     Passage,
     RoomConnection,
 )
-from pergo_planner.planner import create_plan
+from floor_layout_planner.planner import create_plan
 
 
 def room(
@@ -310,3 +312,49 @@ def test_source_board_indices_are_preserved_across_cut() -> None:
     assert {
         piece.source_board_index for pieces in split.values() for piece in pieces
     }.issubset(source_indices)
+
+
+def test_split_does_not_assign_other_room_area_from_same_half_plane() -> None:
+    room_a = {
+        "id": "stue",
+        "name": "Living room",
+        "origin": {"x": 0, "y": 0},
+        "rectangles": [
+            {"x": 0, "y": 0, "width": 2000, "height": 1000},
+            {"x": 0, "y": 1000, "width": 4000, "height": 1000},
+        ],
+    }
+    room_b = room(
+        "kjokken",
+        origin_x=2200,
+        origin_y=0,
+        width=1800,
+        height=1000,
+    )
+    connection_value = RoomConnection(
+        connection_id="stue_kjokken",
+        room_a="stue",
+        room_b="kjokken",
+        connection_type="continuous_then_cut",
+        opening=Opening(x1=2200, y1=1000, x2=2600, y2=1000),
+        passage=Passage(x=2200, y=1000, width=400, height=120),
+        cut=CutSettings(axis="y", gap_width_mm=5),
+    )
+    candidate = candidate_for(room_a, room_b, connection_value)
+
+    split = split_candidate_at_cut(
+        candidate=candidate,
+        room_a=room_a,
+        room_b=room_b,
+        connection=connection_value,
+        cut_plan=cut_plan(),
+        orientation="horizontal",
+    )
+
+    allowed_a = global_room_polygon(room_a).union(passage_polygon(connection_value))
+    allowed_b = global_room_polygon(room_b).union(passage_polygon(connection_value))
+    assert pieces_geometry(split["stue"]).difference(allowed_a).area == pytest.approx(
+        0, abs=1e-6
+    )
+    outside_b = pieces_geometry(split["kjokken"]).difference(allowed_b).area
+    assert outside_b == pytest.approx(0, abs=1e-6)

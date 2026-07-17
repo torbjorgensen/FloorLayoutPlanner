@@ -151,6 +151,7 @@ export interface ContinuousStatePayload {
     running: boolean;
     finished: boolean;
     error: string | null;
+    provisional?: boolean;
     candidate: Candidate | null;
     profile: ContinuousProfile;
     room_pieces: Record<string, Piece[]>;
@@ -167,12 +168,28 @@ export interface ConnectionPayload {
 }
 
 export interface ProjectState {
+    project_id?: string;
+    project_version?: number;
     project_name: string;
     board: Record<string, number | string>;
     rooms: RoomStatePayload[];
     bounds: Bounds;
     output_dir: string;
     connections: ConnectionPayload[];
+}
+
+export interface ProjectSummary {
+    id: string;
+    name: string;
+    version: number;
+    archived: boolean;
+    created_at: string;
+    updated_at: string;
+    optimization_status: string;
+}
+
+export interface ProjectRecord extends ProjectSummary {
+    config: Record<string, unknown>;
 }
 
 export interface RoomActionResponse {

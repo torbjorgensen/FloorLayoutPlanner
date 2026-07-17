@@ -526,6 +526,7 @@ function drawPieces(
     room: RoomStatePayload | null,
     simulation: SimulationState | null,
     inspectedBoardKey: string | null,
+    provisional = false,
 ) {
     const piecesByBoardRow = new Map<string, Piece[]>();
     const boardRowAnchors = new Map<string, Piece>();
@@ -559,7 +560,13 @@ function drawPieces(
             boardScope,
         );
 
-        if (stepState === "future") {
+        if (provisional) {
+            context.fillStyle = selected
+                ? "rgba(253, 230, 138, 0.48)"
+                : "rgba(254, 243, 199, 0.4)";
+            context.strokeStyle = "rgba(180, 83, 9, 0.78)";
+            context.lineWidth = 1.2;
+        } else if (stepState === "future") {
             context.fillStyle = isShort
                 ? "rgba(255, 214, 214, 0.35)"
                 : selected
@@ -606,7 +613,7 @@ function drawPieces(
             ].join(":")) || [],
             x,
             y,
-            stepState,
+            provisional ? "future" : stepState,
         );
     }
 
@@ -619,12 +626,14 @@ function drawPieces(
             x,
             y,
             scale,
-            simulationStepState(
-                simulation,
-                anchor,
-                roomId,
-                boardScope,
-            ),
+            provisional
+                ? "future"
+                : simulationStepState(
+                    simulation,
+                    anchor,
+                    roomId,
+                    boardScope,
+                ),
         );
     }
 }
@@ -731,6 +740,7 @@ function drawFloorPieces(
                 room,
                 simulation,
                 inspectedBoardKey,
+                Boolean(connection.continuous?.provisional),
             );
             renderedByContinuous.add(roomId);
         }
@@ -759,6 +769,7 @@ function drawFloorPieces(
             room,
             simulation,
             inspectedBoardKey,
+            false,
         );
     }
 }

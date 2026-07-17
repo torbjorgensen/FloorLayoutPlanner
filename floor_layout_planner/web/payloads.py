@@ -3,9 +3,9 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from pergo_planner.geometry import build_floor_polygon
-from pergo_planner.web.config import editable_room_settings, merged_settings
-from pergo_planner.web.state import ProjectState, RoomState
+from floor_layout_planner.geometry import build_floor_polygon
+from floor_layout_planner.web.config import editable_room_settings, merged_settings
+from floor_layout_planner.web.state import ProjectState, RoomState
 
 
 def global_rectangles(room: dict[str, Any]) -> list[dict[str, Any]]:

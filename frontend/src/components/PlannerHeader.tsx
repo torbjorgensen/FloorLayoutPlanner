@@ -1,5 +1,3 @@
-import Paper from "@mui/material/Paper";
-
 import {ActionButton} from "./ActionButton";
 import type {ConnectionStatus} from "../hooks/useProjectState";
 
@@ -8,6 +6,7 @@ interface PlannerHeaderProps {
     connectionStatus: ConnectionStatus;
     connectionError: string | null;
     onRestartAll: () => void;
+    onBackToProjects?: () => void;
 }
 
 export function PlannerHeader({
@@ -15,6 +14,7 @@ export function PlannerHeader({
     connectionStatus,
     connectionError,
     onRestartAll,
+    onBackToProjects,
 }: PlannerHeaderProps) {
     const connectionLabel = {
         connecting: "Connecting",
@@ -23,15 +23,23 @@ export function PlannerHeader({
         disconnected: "Disconnected",
     }[connectionStatus];
     return (
-        <Paper className="topbar" component="header" elevation={0}>
+        <header className="topbar">
             <div className="brand-block">
-                <p className="eyebrow">Laying Engine Studio</p>
                 <h1>Floor Layout Planner</h1>
                 <p className="project-subtitle">
                     {projectName || "Waiting for backend state"}
                 </p>
             </div>
             <div className="topbar-actions">
+                {onBackToProjects && (
+                    <ActionButton
+                        className="action-button planner-projects-button"
+                        onClick={onBackToProjects}
+                        type="button"
+                    >
+                        Projects
+                    </ActionButton>
+                )}
                 <div
                     className="topbar-note"
                     data-status={connectionStatus}
@@ -48,6 +56,6 @@ export function PlannerHeader({
                     Restart all rooms
                 </ActionButton>
             </div>
-        </Paper>
+        </header>
     );
 }

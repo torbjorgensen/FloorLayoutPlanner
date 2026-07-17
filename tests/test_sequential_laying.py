@@ -5,7 +5,7 @@ from collections import defaultdict
 import pytest
 from shapely.geometry import Polygon, box
 
-from pergo_planner.planner import create_plan
+from floor_layout_planner.planner import create_plan
 
 SAW_KERF_MM = 3.2
 

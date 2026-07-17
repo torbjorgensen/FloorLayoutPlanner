@@ -5,12 +5,15 @@ services:
       dockerfile: Dockerfile.backend
     environment:
       PLANNER_CONFIG_PATH: /data/project.json
+      PLANNER_DATABASE_URL: sqlite:////data/storage/planner.db
+      PLANNER_PROJECT_OUTPUT_ROOT: /data/storage/outputs
       SOCKETIO_ALLOWED_ORIGINS: "${SOCKETIO_ALLOWED_ORIGINS:-}"
     # Match the host owner so project saves and generated output remain editable.
     user: "${PLANNER_UID:-1000}:${PLANNER_GID:-1000}"
     volumes:
       - ${PLANNER_CONFIG_FILE:-./stue_project.json}:/data/project.json
       - ${PLANNER_OUTPUT_DIR:-./planner_output}:/data/project_output
+      - ${PLANNER_DATA_DIR:-./planner_data}:/data/storage
     expose:
       - "8765"
     healthcheck:

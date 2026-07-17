@@ -10,13 +10,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-from pergo_planner.candidate_evaluator import (
+from floor_layout_planner.candidate_evaluator import (
     evaluate_candidate_fast,
     evaluate_candidate_full,
 )
-from pergo_planner.geometry import build_floor_polygon
-from pergo_planner.optimizer import build_candidate_inputs
-from pergo_planner.planner import create_plan
+from floor_layout_planner.geometry import build_floor_polygon
+from floor_layout_planner.optimizer import build_candidate_inputs
+from floor_layout_planner.planner import create_plan
 
 DEFAULT_SETTINGS = {
     "orientation": "horizontal",

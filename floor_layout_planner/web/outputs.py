@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from pergo_planner.models import Candidate
+from floor_layout_planner.models import Candidate
 
 
 def write_piece_csv(path: Path, candidate: Candidate) -> None:

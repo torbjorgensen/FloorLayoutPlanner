@@ -4,14 +4,14 @@ import pytest
 from shapely.geometry import box
 from shapely.ops import unary_union
 
-from pergo_planner.models import (
+from floor_layout_planner.models import (
     Candidate,
     CutSettings,
     Opening,
     Passage,
     RoomConnection,
 )
-from pergo_planner.passage_preview import create_passage_preview
+from floor_layout_planner.passage_preview import create_passage_preview
 
 
 def make_candidate(

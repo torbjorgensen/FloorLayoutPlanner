@@ -145,9 +145,10 @@ describe("canvas board inspection", () => {
                     type: "continuous_then_cut",
                     room_a: "room_1",
                     continuous: {
-                        running: false,
-                        finished: true,
+                        running: true,
+                        finished: false,
                         error: null,
+                        provisional: true,
                         candidate: null,
                         profile: {},
                         room_pieces: {room_1: [transitionPiece]},
@@ -162,6 +163,7 @@ describe("canvas board inspection", () => {
         expect(pieces).toHaveLength(1);
         expect(pieces[0]?.piece.physical_board_id).toBe("C00001");
         expect(pieces[0]?.boardScope).toBe("connection:shared_floor");
+        expect(continuousState.connections[0].continuous?.provisional).toBe(true);
     });
 
     it("shows board metadata and a short-piece warning", () => {
@@ -180,5 +182,20 @@ describe("canvas board inspection", () => {
         expect(screen.getByRole("status")).toHaveTextContent(
             "Shorter than the configured minimum",
         );
+    });
+
+    it("announces and visually distinguishes a pinned inspection", () => {
+        const inspection: PieceHit = {
+            ...inspectableFloorPieces(state)[0],
+            anchor: {x: 100, y: 100},
+        };
+
+        const {container} = render(
+            <BoardInspection inspection={inspection} pinned />,
+        );
+        const status = container.querySelector("[role='status']");
+
+        expect(status).toHaveTextContent("Pinned selection");
+        expect(status).toHaveClass("board-inspection-pinned");
     });
 });

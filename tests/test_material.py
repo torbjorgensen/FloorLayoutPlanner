@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pergo_planner.material import material_metrics, material_score
-from pergo_planner.planner import Piece
+from floor_layout_planner.material import material_metrics, material_score
+from floor_layout_planner.planner import Piece
 
 
 def piece(board_id: str, row: int, length: float) -> Piece:

@@ -4,10 +4,10 @@ import copy
 from pathlib import Path
 from typing import Any
 
-from pergo_planner.connections import connection_payload
-from pergo_planner.continuous_solver import cut_plan_payload
-from pergo_planner.web.payloads import room_canvas_payload
-from pergo_planner.web.state import ProjectState
+from floor_layout_planner.connections import connection_payload
+from floor_layout_planner.continuous_solver import cut_plan_payload
+from floor_layout_planner.web.payloads import room_canvas_payload
+from floor_layout_planner.web.state import ProjectState
 
 
 def build_state_payload(state: ProjectState, output_dir: Path) -> dict[str, Any]:
@@ -53,6 +53,7 @@ def _continuous_payload(state: ProjectState, connection_id: str) -> dict[str, An
         "running": continuous.running,
         "finished": continuous.finished,
         "error": continuous.error,
+        "provisional": continuous.provisional,
         "candidate": state.candidate_payload(continuous.current or continuous.best),
         "profile": copy.deepcopy(continuous.profile),
         "room_pieces": {

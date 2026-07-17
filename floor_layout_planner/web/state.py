@@ -4,8 +4,8 @@ import copy
 import threading
 from typing import Any
 
-from pergo_planner.connections import parse_connections
-from pergo_planner.models import Candidate
+from floor_layout_planner.connections import parse_connections
+from floor_layout_planner.models import Candidate
 
 
 class RoomState:
@@ -46,6 +46,7 @@ class ContinuousState:
         self.best: Candidate | None = None
         self.cut_plan = None
         self.room_pieces: dict[str, list] = {}
+        self.provisional = False
         self.profile: dict[str, Any] = {
             "phase": "idle",
             "completed": 0,

@@ -1,3 +1,31 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "floor-layout-planner"
+version = "0.1.0"
+description = "Plan multi-room flooring layouts and board usage."
+requires-python = ">=3.12"
+dependencies = [
+  "Flask>=3.0",
+  "Flask-SocketIO>=5.3,<6",
+  "alembic>=1.13,<2",
+  "gunicorn>=23.0,<24",
+  "matplotlib>=3.7",
+  "numpy>=2.0",
+  "Pillow>=10.0",
+  "shapely>=2.0",
+  "simple-websocket>=1.1,<2",
+  "SQLAlchemy>=2.0,<3",
+]
+
+[project.scripts]
+floor-layout-planner = "floor_layout_planner.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["floor_layout_planner*", "pergo_planner"]
+
 [tool.black]
 line-length = 88
 target-version = ["py312"]

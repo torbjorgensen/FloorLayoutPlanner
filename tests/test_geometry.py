@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from pergo_planner.geometry import build_floor_polygon, swap_xy_polygon
+from floor_layout_planner.geometry import build_floor_polygon, swap_xy_polygon
 
 
 def test_single_rectangle_area() -> None:

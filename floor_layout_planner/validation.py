@@ -4,8 +4,8 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pergo_planner.models import Candidate, CutPlan
-    from pergo_planner.planner import Piece
+    from floor_layout_planner.models import Candidate, CutPlan
+    from floor_layout_planner.planner import Piece
 
 
 _LENGTH_EPSILON_MM = 1e-6

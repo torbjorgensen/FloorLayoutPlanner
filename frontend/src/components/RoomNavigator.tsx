@@ -1,7 +1,4 @@
-import Chip from "@mui/material/Chip";
-import MenuItem from "@mui/material/MenuItem";
-import Paper from "@mui/material/Paper";
-import TextField from "@mui/material/TextField";
+import Form from "react-bootstrap/Form";
 
 import {titleCaseWords} from "../lib/planning";
 import type {RoomStatePayload} from "../types";
@@ -19,13 +16,13 @@ export function RoomNavigator({
     onSelectRoom,
 }: RoomNavigatorProps) {
     return (
-        <Paper className="panel panel-room-picker" component="section" elevation={0}>
+        <section className="panel panel-room-picker">
             <div className="panel-header">
                 <div>
                     <p className="eyebrow">Navigator</p>
                     <h2>Rooms</h2>
                 </div>
-                <Chip className="panel-chip" label="Live" size="small" />
+                <span className="badge text-bg-success">Live</span>
             </div>
             <div className="room-tab-grid" id="roomTabs">
                 {rooms.map(room => (
@@ -45,21 +42,19 @@ export function RoomNavigator({
                     </ActionButton>
                 ))}
             </div>
-            <TextField
-                fullWidth
+            <Form.Select
                 id="roomSelect"
-                label="Room dropdown"
+                aria-label="Room dropdown"
                 onChange={event => onSelectRoom(event.target.value)}
-                select
-                size="small"
+                size="sm"
                 value={selectedRoomId || ""}
             >
                 {rooms.map(room => (
-                    <MenuItem key={room.id} value={room.id}>
+                    <option key={room.id} value={room.id}>
                         {room.name}
-                    </MenuItem>
+                    </option>
                 ))}
-            </TextField>
-        </Paper>
+            </Form.Select>
+        </section>
     );
 }

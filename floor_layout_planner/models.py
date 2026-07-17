@@ -50,6 +50,23 @@ class CandidateInput:
 
 
 @dataclass(frozen=True)
+class ContinuousCandidateInput:
+    candidate_input: CandidateInput
+    connection: RoomConnection
+    orientation: str
+    minimum_piece_length: float
+    minimum_row_width: float
+    preferred_minimum_row_width: float
+
+
+@dataclass(frozen=True)
+class ContinuousEvaluation:
+    score: tuple
+    candidate: Candidate
+    cut_plan: CutPlan
+
+
+@dataclass(frozen=True)
 class Opening:
     x1: float
     y1: float

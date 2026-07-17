@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from pergo_planner.planner import Piece
+from floor_layout_planner.planner import Piece
 
 _LENGTH_TOLERANCE_MM = 1.0
 

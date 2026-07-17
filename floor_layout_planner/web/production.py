@@ -6,7 +6,7 @@ import atexit
 import os
 from pathlib import Path
 
-from pergo_planner.web.app import create_app
+from floor_layout_planner.web.app import create_app
 
 
 def _config_path() -> Path:

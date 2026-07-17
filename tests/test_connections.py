@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from pergo_planner.connections import parse_connections
+from floor_layout_planner.connections import parse_connections
 
 
 def base_config() -> dict:

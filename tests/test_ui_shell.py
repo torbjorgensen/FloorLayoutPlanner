@@ -16,7 +16,10 @@ def test_frontend_package_declares_react_vite_toolchain() -> None:
     assert package["scripts"]["dev"] == "vite"
     assert package["scripts"]["build"] == "tsc -b && vite build"
     assert package["dependencies"]["react"]
-    assert package["dependencies"]["@mui/material"]
+    assert package["dependencies"]["bootstrap"]
+    assert package["dependencies"]["react-bootstrap"]
+    assert package["dependencies"]["react-router-dom"]
+    assert "@mui/material" not in package["dependencies"]
     assert package["dependencies"]["socket.io-client"]
     assert package["devDependencies"]["vite"]
     assert package["devDependencies"]["vitest"]
@@ -49,7 +52,9 @@ def test_vite_config_proxies_api_requests() -> None:
 
 
 def test_flask_backend_serves_frontend_build_or_dev_url() -> None:
-    backend = project_file("pergo_planner/web/app.py").read_text(encoding="utf-8")
+    backend = project_file("floor_layout_planner/web/app.py").read_text(
+        encoding="utf-8"
+    )
 
     assert (
         'frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"'

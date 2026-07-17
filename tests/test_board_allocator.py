@@ -3,10 +3,10 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import replace
 
-from pergo_planner.board_allocator import (
+from floor_layout_planner.board_allocator import (
     assign_physical_boards,
 )
-from pergo_planner.planner import Piece
+from floor_layout_planner.planner import Piece
 
 SAW_KERF_MM = 3.2
 

@@ -7,30 +7,31 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from pergo_planner.continuous_solver import (
-    best_cut_plan,
+from floor_layout_planner.continuous_solver import (
     build_continuous_floor,
-    continuous_candidate_score,
     split_candidate_at_cut,
 )
-from pergo_planner.models import Candidate
-from pergo_planner.optimizer import (
+from floor_layout_planner.models import Candidate
+from floor_layout_planner.optimizer import (
     build_candidate_inputs,
+    continuous_inputs,
     parallel_coarse_generator,
+    parallel_continuous_coarse_generator,
+    parallel_continuous_refine_generator,
     parallel_refine_generator,
 )
-from pergo_planner.renderer import plot_plan
-from pergo_planner.validation import (
+from floor_layout_planner.renderer import plot_plan
+from floor_layout_planner.validation import (
     InfeasibleLayoutError,
     candidate_meets_minimum_length,
     cut_plan_meets_minimum_length,
     select_best_valid_candidate,
     split_pieces_meet_minimum_lengths,
 )
-from pergo_planner.web.config import merged_settings
-from pergo_planner.web.outputs import write_piece_csv
-from pergo_planner.web.payloads import local_floor
-from pergo_planner.web.state import ProjectState, RoomState
+from floor_layout_planner.web.config import merged_settings
+from floor_layout_planner.web.outputs import write_piece_csv
+from floor_layout_planner.web.payloads import local_floor
+from floor_layout_planner.web.state import ProjectState, RoomState
 
 
 @dataclass(frozen=True)
@@ -44,7 +45,6 @@ class WorkerManager:
 def create_worker_manager(
     state: ProjectState,
     output_dir: Path,
-    config_path: Path,
     notify_state_changed: Callable[[], None],
 ) -> WorkerManager:
     shutdown_requested = threading.Event()
@@ -430,6 +430,7 @@ def create_worker_manager(
                 saw_kerf_mm=float(board.get("saw_kerf_mm", 3.2)),
             )
             workers = int(settings_a["optimizer_workers"])
+            preview_every = int(settings_a["preview_every_n_results"])
             top_n = min(int(settings_a["local_optimize_top_n"]), len(inputs))
             started_at = time.perf_counter()
             coarse_total = len(inputs)
@@ -443,6 +444,7 @@ def create_worker_manager(
                 message: str,
                 coarse_completed: int,
                 refine_completed: int,
+                notify: bool = True,
             ) -> None:
                 elapsed = max(time.perf_counter() - started_at, 1e-9)
                 rate = completed / elapsed
@@ -470,7 +472,37 @@ def create_worker_manager(
                             "message": message,
                         }
                     )
-                notify_state_changed()
+                if notify:
+                    notify_state_changed()
+
+            def item_is_valid(item) -> bool:
+                _, candidate, cut_plan = item
+                return candidate_meets_minimum_length(
+                    candidate, minimum_length
+                ) and cut_plan_meets_minimum_length(cut_plan)
+
+            def item_rank(item) -> tuple[bool, Any]:
+                return (not item_is_valid(item), item[0])
+
+            def publish_preview(item) -> None:
+                _, candidate, cut_plan = item
+                room_pieces = split_candidate_at_cut(
+                    candidate=candidate,
+                    room_a=room_a,
+                    room_b=room_b,
+                    connection=connection,
+                    cut_plan=cut_plan,
+                    orientation=orientation,
+                )
+                with state.lock:
+                    current_state = state.continuous[connection.connection_id]
+                    if generation != current_state.generation:
+                        return
+                    current_state.best = candidate
+                    current_state.current = candidate
+                    current_state.cut_plan = cut_plan
+                    current_state.room_pieces = room_pieces
+                    current_state.provisional = True
 
             update_continuous_progress(
                 phase="coarse",
@@ -482,48 +514,53 @@ def create_worker_manager(
 
             coarse_ranked = []
             refined_ranked = []
+            best_preview_item = None
             coarse_completed = 0
-            for candidate in parallel_coarse_generator(inputs=inputs, workers=workers):
+            transition_inputs = continuous_inputs(
+                inputs,
+                connection=connection,
+                orientation=orientation,
+                minimum_piece_length=minimum_length,
+                minimum_row_width=float(settings_a["minimum_row_width_mm"]),
+                preferred_minimum_row_width=float(
+                    settings_a["preferred_minimum_row_width_mm"]
+                ),
+            )
+            for evaluation in parallel_continuous_coarse_generator(
+                inputs=transition_inputs, workers=workers
+            ):
                 if shutdown_requested.is_set():
                     return
                 if generation != continuous_state.generation:
                     return
-                cut_plan = best_cut_plan(
-                    candidate,
-                    connection,
-                    orientation,
-                    minimum_length,
-                    float(settings_a["minimum_row_width_mm"]),
-                    float(settings_a["preferred_minimum_row_width_mm"]),
-                )
-                item = (
-                    continuous_candidate_score(candidate, cut_plan),
-                    candidate,
-                    cut_plan,
-                )
+                item = (evaluation.score, evaluation.candidate, evaluation.cut_plan)
                 coarse_ranked.append(item)
                 coarse_completed += 1
-                with state.lock:
-                    continuous_state.current = candidate
+                if best_preview_item is None or item_rank(item) < item_rank(
+                    best_preview_item
+                ):
+                    best_preview_item = item
+                publish_now = coarse_completed % preview_every == 0
+                if publish_now:
+                    publish_preview(best_preview_item)
                 update_continuous_progress(
                     phase="coarse",
                     completed=coarse_completed,
                     message="Coarse-searching transition",
                     coarse_completed=coarse_completed,
                     refine_completed=0,
+                    notify=publish_now,
                 )
             if not coarse_ranked:
                 raise ValueError(
                     "No candidates were generated for the continuous floor."
                 )
 
-            def item_is_valid(item) -> bool:
-                _, candidate, cut_plan = item
-                return candidate_meets_minimum_length(
-                    candidate, minimum_length
-                ) and cut_plan_meets_minimum_length(cut_plan)
+            if coarse_completed % preview_every != 0:
+                publish_preview(best_preview_item)
+                notify_state_changed()
 
-            coarse_ranked.sort(key=lambda item: (not item_is_valid(item), item[0]))
+            coarse_ranked.sort(key=item_rank)
             input_lookup = {
                 (item.base_offset, item.row_width_offset): item for item in inputs
             }
@@ -531,6 +568,16 @@ def create_worker_manager(
                 input_lookup[(candidate.base_offset, candidate.row_width_offset)]
                 for _, candidate, _ in coarse_ranked[:top_n]
             ]
+            refine_transition_inputs = continuous_inputs(
+                refine_inputs,
+                connection=connection,
+                orientation=orientation,
+                minimum_piece_length=minimum_length,
+                minimum_row_width=float(settings_a["minimum_row_width_mm"]),
+                preferred_minimum_row_width=float(
+                    settings_a["preferred_minimum_row_width_mm"]
+                ),
+            )
             refine_completed = 0
             update_continuous_progress(
                 phase="refine",
@@ -539,36 +586,32 @@ def create_worker_manager(
                 coarse_completed=coarse_total,
                 refine_completed=0,
             )
-            for candidate in parallel_refine_generator(
-                inputs=refine_inputs,
+            for evaluation in parallel_continuous_refine_generator(
+                inputs=refine_transition_inputs,
                 workers=min(workers, max(1, len(refine_inputs))),
             ):
                 if shutdown_requested.is_set():
                     return
-                cut_plan = best_cut_plan(
-                    candidate,
-                    connection,
-                    orientation,
-                    minimum_length,
-                    float(settings_a["minimum_row_width_mm"]),
-                    float(settings_a["preferred_minimum_row_width_mm"]),
-                )
-                item = (
-                    continuous_candidate_score(candidate, cut_plan),
-                    candidate,
-                    cut_plan,
-                )
+                item = (evaluation.score, evaluation.candidate, evaluation.cut_plan)
                 refined_ranked.append(item)
                 refine_completed += 1
-                with state.lock:
-                    continuous_state.current = candidate
+                if item_rank(item) < item_rank(best_preview_item):
+                    best_preview_item = item
+                publish_now = refine_completed % preview_every == 0
+                if publish_now:
+                    publish_preview(best_preview_item)
                 update_continuous_progress(
                     phase="refine",
                     completed=coarse_total + refine_completed,
                     message="Refining transition",
                     coarse_completed=coarse_total,
                     refine_completed=refine_completed,
+                    notify=publish_now,
                 )
+
+            if refine_completed and refine_completed % preview_every != 0:
+                publish_preview(best_preview_item)
+                notify_state_changed()
 
             update_continuous_progress(
                 phase="cut",
@@ -580,7 +623,7 @@ def create_worker_manager(
 
             ranked_items = sorted(
                 [*coarse_ranked, *refined_ranked],
-                key=lambda item: (not item_is_valid(item), item[0]),
+                key=item_rank,
             )
             selected_item = None
             selected_room_pieces = None
@@ -615,6 +658,7 @@ def create_worker_manager(
                 continuous_state.current = best_item[1]
                 continuous_state.cut_plan = best_item[2]
                 continuous_state.room_pieces = selected_room_pieces
+                continuous_state.provisional = False
                 continuous_state.running = False
                 continuous_state.finished = True
                 continuous_state.profile.update(
@@ -656,6 +700,7 @@ def create_worker_manager(
         continuous_state.best = None
         continuous_state.cut_plan = None
         continuous_state.room_pieces = {}
+        continuous_state.provisional = False
         continuous_state.profile = {
             "phase": "starting",
             "completed": 0,

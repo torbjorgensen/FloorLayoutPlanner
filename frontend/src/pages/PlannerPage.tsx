@@ -1,6 +1,8 @@
 import {useEffect, useMemo, useRef, useState} from "react";
-import Tab from "@mui/material/Tab";
-import Tabs from "@mui/material/Tabs";
+import Alert from "react-bootstrap/Alert";
+import Nav from "react-bootstrap/Nav";
+import OverlayTrigger from "react-bootstrap/OverlayTrigger";
+import Popover from "react-bootstrap/Popover";
 import {ActionButton} from "../components/ActionButton";
 import {BoardInspection} from "../components/BoardInspection";
 import {MetricRows} from "../components/MetricRows";
@@ -79,12 +81,16 @@ function statusForRoom(
             && progress.eta_s !== undefined
                 ? ` - about ${formatSeconds(progress.eta_s)} remaining`
                 : "";
+        const previewText = continuous.provisional
+            ? " — showing best provisional layout"
+            : "";
 
         return {
             text:
                 `${progress.message || "Optimizing transition"}`
                 + ` - ${formatNumber(percent, 1)} %`
-                + etaText,
+                + etaText
+                + previewText,
             kind: "running",
         };
     }
@@ -143,10 +149,14 @@ function statusForRoom(
     };
 }
 
-function PlannerPage() {
+interface PlannerPageProps {
+    projectId?: string;
+}
+
+function PlannerPage({projectId}: PlannerPageProps) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const hoverFrameRef = useRef<number | null>(null);
-    const {state, connectionStatus, connectionError} = useProjectState();
+    const {state, connectionStatus, connectionError} = useProjectState(projectId);
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
     const [activePanel, setActivePanel] = useState(0);
     const [formState, setFormState] = useState<FormState>({});
@@ -228,6 +238,42 @@ function PlannerPage() {
         setInspectionPinned(false);
     }, [selectedRoomId]);
 
+    useEffect(() => {
+        setInspectedPiece(null);
+        setInspectionPinned(false);
+    }, [projectId]);
+
+    useEffect(() => {
+        if (!inspectedPiece) {
+            return;
+        }
+        const inspectionStillAvailable = state
+            ? inspectableFloorPieces(state).some(
+                piece => piece.key === inspectedPiece.key,
+            )
+            : false;
+        if (!inspectionStillAvailable) {
+            setInspectedPiece(null);
+            setInspectionPinned(false);
+        }
+    }, [state, inspectedPiece]);
+
+    useEffect(() => {
+        if (!inspectionPinned) {
+            return;
+        }
+        const dismissOutsideCanvas = (event: PointerEvent) => {
+            if (event.target !== canvasRef.current) {
+                setInspectedPiece(null);
+                setInspectionPinned(false);
+            }
+        };
+        document.addEventListener("pointerdown", dismissOutsideCanvas, true);
+        return () => {
+            document.removeEventListener("pointerdown", dismissOutsideCanvas, true);
+        };
+    }, [inspectionPinned]);
+
     useEffect(
         () => () => {
             if (simulationRun?.timerId) {
@@ -282,9 +328,6 @@ function PlannerPage() {
     }
 
     function handleCanvasPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
-        if (event.pointerType === "mouse") {
-            return;
-        }
         const hit = pieceAtPointer(
             event.currentTarget,
             event.clientX,
@@ -360,7 +403,9 @@ function PlannerPage() {
         }
 
         const response = await fetch(
-            `/api/room/${selectedRoomId}/${action}`,
+            projectId
+                ? `/api/projects/${projectId}/runtime/room/${selectedRoomId}/${action}`
+                : `/api/room/${selectedRoomId}/${action}`,
             {
                 method: "POST",
                 headers: payload
@@ -452,7 +497,12 @@ function PlannerPage() {
     async function handleRestartAll() {
         stopSimulation();
         try {
-            await fetch("/api/restart-all", {method: "POST"});
+            await fetch(
+                projectId
+                    ? `/api/projects/${projectId}/runtime/restart-all`
+                    : "/api/restart-all",
+                {method: "POST"},
+            );
         } catch (error) {
             setValidationMessage(
                 error instanceof Error ? error.message : "Restart failed.",
@@ -574,6 +624,11 @@ function PlannerPage() {
         : connection?.continuous?.finished
             ? 100
             : Math.max(1, Number(candidate?.total_attempts || 1));
+    const simulationFeedbackVariant = simulationStatus.startsWith("No ")
+        ? "warning"
+        : simulationStatus.startsWith("Simulation finished")
+            ? "success"
+            : "info";
 
     return (
         <div className="app-shell">
@@ -582,6 +637,9 @@ function PlannerPage() {
                 connectionStatus={connectionStatus}
                 connectionError={connectionError}
                 onRestartAll={() => void handleRestartAll()}
+                onBackToProjects={
+                    projectId ? () => window.location.assign("/") : undefined
+                }
             />
 
             <main className="workspace">
@@ -626,6 +684,32 @@ function PlannerPage() {
                             </div>
                             <div className="canvas-header-tools">
                                 <div className="simulation-controls">
+                                    <OverlayTrigger
+                                        overlay={(
+                                            <Popover id="layoutHelp">
+                                                <Popover.Header as="h3">How to read the view</Popover.Header>
+                                                <Popover.Body>
+                                                    Board labels show placement order and laying direction.
+                                                    Hover a board for details, or click or tap it to pin
+                                                    every piece cut from the same physical board. Use the
+                                                    arrow keys to inspect pieces and Escape to clear a pin.
+                                                    Simulation rehearses the finished layout one placement
+                                                    at a time.
+                                                </Popover.Body>
+                                            </Popover>
+                                        )}
+                                        placement="bottom"
+                                        rootClose
+                                        trigger="click"
+                                    >
+                                        <ActionButton
+                                            aria-label="Show layout help"
+                                            className="action-button"
+                                            type="button"
+                                        >
+                                            Help
+                                        </ActionButton>
+                                    </OverlayTrigger>
                                     <label className="simulation-label" htmlFor="simulateDelayInput">
                                         Step delay
                                     </label>
@@ -667,9 +751,27 @@ function PlannerPage() {
                                         <span className="legend-swatch legend-swatch-short"></span>
                                         Short piece warning
                                     </span>
+                                    {connection?.continuous?.provisional && (
+                                        <span className="legend-pill">
+                                            <span className="legend-swatch legend-swatch-provisional"></span>
+                                            Provisional preview
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
+                        {simulationStatus !== "Simulation idle." && (
+                            <Alert
+                                className="simulation-feedback"
+                                dismissible
+                                id="simulationStatus"
+                                onClose={() => stopSimulation()}
+                                role={simulationFeedbackVariant === "warning" ? "alert" : "status"}
+                                variant={simulationFeedbackVariant}
+                            >
+                                {simulationStatus}
+                            </Alert>
+                        )}
                         <div className="canvas-stage">
                             <canvas
                                 id="floorCanvas"
@@ -695,21 +797,11 @@ function PlannerPage() {
                                 tabIndex={0}
                             ></canvas>
                             {inspectedPiece && (
-                                <BoardInspection inspection={inspectedPiece} />
+                                <BoardInspection
+                                    inspection={inspectedPiece}
+                                    pinned={inspectionPinned}
+                                />
                             )}
-                            <div className="canvas-overlay">
-                                <p className="overlay-title">How to read the view</p>
-                                <p className="overlay-copy">
-                                    Each placement shows board order and laying direction.
-                                    Use simulation to rehearse the finished layout.
-                                </p>
-                                <p
-                                    id="simulationStatus"
-                                    className="overlay-copy overlay-copy-strong"
-                                >
-                                    {simulationStatus}
-                                </p>
-                            </div>
                         </div>
                     </section>
                 </section>
@@ -719,16 +811,29 @@ function PlannerPage() {
                         selectedRoomId={selectedRoomId}
                         onSelectRoom={selectRoom}
                     />
-                    <Tabs
+                    <Nav
                         aria-label="Planner controls"
                         className="control-tabs"
-                        onChange={(_event, value: number) => setActivePanel(value)}
-                        value={activePanel}
-                        variant="fullWidth"
+                        fill
+                        variant="tabs"
                     >
-                        <Tab label="Overview" />
-                        <Tab label="Room settings" />
-                    </Tabs>
+                        <Nav.Item>
+                            <Nav.Link
+                                active={activePanel === 0}
+                                onClick={() => setActivePanel(0)}
+                            >
+                                Overview
+                            </Nav.Link>
+                        </Nav.Item>
+                        <Nav.Item>
+                            <Nav.Link
+                                active={activePanel === 1}
+                                onClick={() => setActivePanel(1)}
+                            >
+                                Room settings
+                            </Nav.Link>
+                        </Nav.Item>
+                    </Nav>
                     {activePanel === 0 && (
                         <div className="control-panel-stack">
 
