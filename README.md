@@ -61,13 +61,14 @@ Only the Nginx port is exposed on the host.
 Create a writable output directory, then start the stack:
 
 ```bash
-mkdir -p planner_output
+mkdir -p planner_output planner_data
 docker compose up --build -d
 ```
 
 Open `http://localhost:8080`. By default, `stue_project.json` is mounted as the
 project configuration and generated files are stored in `planner_output/`, so
-both survive container replacement.
+both survive container replacement. Database-backed projects introduced by the
+project-management work are stored in `planner_data/planner.db`.
 
 Use a different project, output directory, or public port with environment
 variables:
@@ -75,6 +76,7 @@ variables:
 ```bash
 PLANNER_CONFIG_FILE=/absolute/path/project.json \
 PLANNER_OUTPUT_DIR=/absolute/path/output \
+PLANNER_DATA_DIR=/absolute/path/database-directory \
 PLANNER_PORT=8088 \
 docker compose up --build -d
 ```
@@ -108,7 +110,7 @@ docker compose logs --follow
 docker compose up --build --detach --remove-orphans
 
 # Back up the persisted project and generated output.
-tar -czf planner-backup.tar.gz stue_project.json planner_output/
+tar -czf planner-backup.tar.gz stue_project.json planner_output/ planner_data/
 ```
 
 Restore by stopping the stack, extracting the archive into the same paths, and
@@ -116,6 +118,12 @@ starting Compose again. When custom mount paths are configured, back up those
 paths instead.
 
 Docker is not used by `tools/dev.sh` and is not needed for local development.
+To exercise database persistence during host development, pass a SQLAlchemy URL
+without changing the normal startup command:
+
+```bash
+PLANNER_DATABASE_URL=sqlite:///planner.db tools/dev.sh stue_project.json
+```
 
 ## Frontend checks
 

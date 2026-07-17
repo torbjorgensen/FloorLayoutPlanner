@@ -10,6 +10,7 @@ import pytest
 from pergo_planner.models import Candidate
 from pergo_planner.planner import Piece
 from pergo_planner.web.app import create_app
+from pergo_planner.web.config import load_config
 from pergo_planner.web.sockets import STATE_EVENT
 
 
@@ -52,6 +53,19 @@ def test_health_endpoint_reports_readiness(config_path: Path) -> None:
 
     assert response.status_code == 200
     assert response.get_json() == {"status": "ok"}
+
+
+def test_app_initializes_configured_project_storage(
+    config_path: Path, tmp_path: Path
+) -> None:
+    """Database storage is optional but migration-managed when configured."""
+    database_url = f"sqlite:///{tmp_path / 'projects.db'}"
+
+    runtime = create_app(config_path, start_workers=False, database_url=database_url)
+
+    assert runtime.projects is not None
+    stored = runtime.projects.create(load_config(config_path))
+    assert runtime.projects.get(stored.id).config == load_config(config_path)
 
 
 def test_invalid_search_reports_error_without_writing_outputs(

@@ -11,6 +11,8 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 COPY pergo_planner ./pergo_planner
+COPY alembic.ini ./
+COPY migrations ./migrations
 
 RUN useradd --create-home --uid 10001 planner \
     && mkdir -p /data /tmp/matplotlib \

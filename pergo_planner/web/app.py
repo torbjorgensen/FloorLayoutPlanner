@@ -8,6 +8,7 @@ from typing import Any, Callable
 from flask import Flask, jsonify, redirect, send_from_directory
 from flask_socketio import SocketIO
 
+from pergo_planner.storage import ProjectService, initialize_project_storage
 from pergo_planner.web.config import load_config
 from pergo_planner.web.routes import register_command_routes
 from pergo_planner.web.serialization import build_state_payload
@@ -25,12 +26,25 @@ class PlannerApplication:
     socketio: SocketIO
     state: ProjectState
     output_dir: Path
+    projects: ProjectService | None
     start_all: Callable[[dict[str, Any]], None]
     shutdown: Callable[[], None]
 
 
-def create_app(config_path: Path, *, start_workers: bool = True) -> PlannerApplication:
+def create_app(
+    config_path: Path,
+    *,
+    start_workers: bool = True,
+    database_url: str | None = None,
+) -> PlannerApplication:
+    """Create the planner runtime with optional database-backed project storage."""
     initial_config = load_config(config_path)
+    configured_database_url = database_url or os.environ.get("PLANNER_DATABASE_URL")
+    projects = (
+        initialize_project_storage(configured_database_url)
+        if configured_database_url
+        else None
+    )
     state = ProjectState(initial_config)
     app = Flask(__name__)
     frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -105,6 +119,8 @@ def create_app(config_path: Path, *, start_workers: bool = True) -> PlannerAppli
         """Release timers and optimizer coordinators owned by this app."""
         state_emitter.close()
         workers.shutdown()
+        if projects is not None:
+            projects.close()
 
     register_command_routes(
         app,
@@ -124,6 +140,7 @@ def create_app(config_path: Path, *, start_workers: bool = True) -> PlannerAppli
         socketio=socketio,
         state=state,
         output_dir=output_dir,
+        projects=projects,
         start_all=start_all,
         shutdown=shutdown,
     )
