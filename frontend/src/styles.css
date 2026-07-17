@@ -1,0 +1,29 @@
+@import "./planner.css";
+
+#root {
+    min-height: 100vh;
+}
+
+.stat-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.stat-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(44, 62, 53, 0.08);
+}
+
+.stat-row span:last-child {
+    font-weight: 700;
+}
+
+/* Material UI owns control behavior; these selectors retain the planner skin. */
+.MuiButton-root.action-button {
+    font-family: inherit;
+}

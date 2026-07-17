@@ -1,83 +1,54 @@
 from __future__ import annotations
 
-from html.parser import HTMLParser
+import json
 from pathlib import Path
-
-
-class IdCollector(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self.ids: set[str] = set()
-
-    def handle_starttag(self, _tag: str, attrs) -> None:
-        for key, value in attrs:
-            if key == "id" and value:
-                self.ids.add(value)
 
 
 def project_file(relative_path: str) -> Path:
     return Path(__file__).resolve().parent.parent / relative_path
 
 
-def test_ui_template_exposes_required_frontend_ids() -> None:
-    parser = IdCollector()
-    parser.feed(project_file("templates/index.html").read_text(encoding="utf-8"))
+def test_frontend_package_declares_react_vite_toolchain() -> None:
+    package = json.loads(
+        project_file("frontend/package.json").read_text(encoding="utf-8")
+    )
 
-    required_ids = {
-        "floorCanvas",
-        "roomTabs",
-        "roomSelect",
-        "settingsForm",
-        "selectedRoomName",
-        "statusText",
-        "statusBadge",
-        "progressBar",
-        "bestStats",
-        "profileStats",
-        "outputFiles",
-        "summaryRoomName",
-        "summaryStatusText",
-        "summaryDirection",
-        "summaryStartCorner",
-        "summaryProgress",
-        "summaryOutput",
-        "simulateDelayInput",
-        "simulateButton",
-        "stopSimulationButton",
-        "simulationStatus",
-        "restartAllButton",
-        "pauseButton",
-        "resumeButton",
-        "restartButton",
-        "saveConfigButton",
-        "resetConfigButton",
-        "validationMessage",
-    }
-
-    assert required_ids.issubset(parser.ids)
+    assert package["scripts"]["dev"] == "vite"
+    assert package["scripts"]["build"] == "tsc -b && vite build"
+    assert package["dependencies"]["react"]
+    assert package["dependencies"]["@mui/material"]
+    assert package["devDependencies"]["vite"]
+    assert package["devDependencies"]["vitest"]
 
 
-def test_ui_styles_define_redesign_shell_tokens() -> None:
-    css = project_file("static/style.css").read_text(encoding="utf-8")
+def test_frontend_source_exposes_simulation_ui() -> None:
+    page_source = project_file("frontend/src/pages/PlannerPage.tsx").read_text(
+        encoding="utf-8"
+    )
 
-    assert "--accent-warm" in css
-    assert ".topbar" in css
-    assert ".hero-panel" in css
-    assert ".canvas-card" in css
-    assert ".room-tab-grid" in css
-    assert ".canvas-overlay" in css
-    assert "@media (max-width: 860px)" in css
+    assert 'id="simulateDelayInput"' in page_source
+    assert 'id="simulateButton"' in page_source
+    assert 'id="stopSimulationButton"' in page_source
+    assert 'id="simulationStatus"' in page_source
+    assert "buildSimulationSteps" in page_source
+    assert "renderFloorPlan" in page_source
 
 
-def test_ui_script_references_new_shell_elements() -> None:
-    script = project_file("static/app.js").read_text(encoding="utf-8")
+def test_vite_config_proxies_api_requests() -> None:
+    vite_config = project_file("frontend/vite.config.ts").read_text(encoding="utf-8")
 
-    assert 'document.getElementById("roomTabs")' in script
-    assert 'document.getElementById("statusBadge")' in script
-    assert 'document.getElementById("summaryRoomName")' in script
-    assert 'document.getElementById("simulateButton")' in script
-    assert 'document.getElementById("simulationStatus")' in script
-    assert "populateRoomTabs" in script
-    assert "syncRoomTabs" in script
-    assert "startSimulation" in script
-    assert "stopSimulation" in script
+    assert '"/api"' in vite_config
+    assert "VITE_API_PROXY_TARGET" in vite_config
+    assert "http://127.0.0.1:8765" in vite_config
+
+
+def test_flask_backend_serves_frontend_build_or_dev_url() -> None:
+    backend = project_file("laminate_planner.py").read_text(encoding="utf-8")
+
+    assert (
+        'frontend_dist = Path(__file__).resolve().parent / "frontend" / "dist"'
+        in backend
+    )
+    assert "FRONTEND_DEV_URL" in backend
+    assert "send_from_directory" in backend
+    assert "redirect(" in backend

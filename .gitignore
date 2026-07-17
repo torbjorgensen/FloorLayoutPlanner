@@ -24,6 +24,8 @@ venv/
 # Build
 dist/
 build/
+frontend/dist/
+frontend/node_modules/
 
 # Python packaging
 *.egg-info/
