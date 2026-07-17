@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import copy
+import time
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
+from pergo_planner.models import Candidate
+from pergo_planner.planner import Piece
 from pergo_planner.web.app import create_app
 from pergo_planner.web.sockets import STATE_EVENT
 
@@ -37,3 +42,71 @@ def test_unknown_room_commands_return_client_errors(config_path: Path) -> None:
     assert pause.status_code == 404
     assert pause.get_json() == {"ok": False, "error": "Unknown room id: missing"}
     assert restart.status_code == 404
+
+
+def test_invalid_search_reports_error_without_writing_outputs(
+    config_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    invalid_piece = Piece(
+        row=1,
+        segment=1,
+        piece=1,
+        x1=0,
+        x2=100,
+        y1=0,
+        y2=200,
+        length=100,
+        width=200,
+        source_board_index=1,
+        physical_board_id="B00001",
+        is_full_length=False,
+    )
+    invalid_candidate = Candidate(
+        attempt=1,
+        total_attempts=1,
+        phase="refine",
+        base_offset=0,
+        row_width_offset=0,
+        pieces=[invalid_piece],
+        short_count=1,
+        very_short_count=0,
+        shortest_piece=100,
+        joint_violations=0,
+        narrow_row_count=0,
+        very_narrow_row_count=0,
+        narrowest_row_width=200,
+        row_offsets={},
+        score=(1, 0, 0, 0, 0, -200, -100),
+        timings={},
+    )
+
+    def candidates(**_kwargs):
+        yield copy.deepcopy(invalid_candidate)
+
+    write_csv = Mock()
+    plot_plan = Mock()
+    monkeypatch.setattr(
+        "pergo_planner.web.workers.parallel_coarse_generator", candidates
+    )
+    monkeypatch.setattr(
+        "pergo_planner.web.workers.parallel_refine_generator", candidates
+    )
+    monkeypatch.setattr("pergo_planner.web.workers.write_piece_csv", write_csv)
+    monkeypatch.setattr("pergo_planner.web.workers.plot_plan", plot_plan)
+
+    runtime = create_app(config_path, start_workers=False)
+    room_id = next(iter(runtime.state.rooms))
+    response = runtime.app.test_client().post(f"/api/room/{room_id}/restart")
+
+    assert response.status_code == 200
+    deadline = time.monotonic() + 2
+    while runtime.state.rooms[room_id].running and time.monotonic() < deadline:
+        time.sleep(0.01)
+
+    room = runtime.state.rooms[room_id]
+    assert not room.running
+    assert room.best is None
+    assert "No valid layout satisfies the minimum piece length" in (room.error or "")
+    write_csv.assert_not_called()
+    plot_plan.assert_not_called()
