@@ -2,12 +2,18 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import {ActionButton} from "../components/ActionButton";
+import {BoardInspection} from "../components/BoardInspection";
 import {MetricRows} from "../components/MetricRows";
 import {PlannerHeader} from "../components/PlannerHeader";
 import {RoomNavigator} from "../components/RoomNavigator";
 import {useProjectState} from "../hooks/useProjectState";
 
-import {renderFloorPlan} from "../lib/canvasRenderer";
+import {
+    hitTestFloorPiece,
+    inspectableFloorPieces,
+    renderFloorPlan,
+} from "../lib/canvasRenderer";
+import type {PieceHit} from "../lib/canvasRenderer";
 import {
     boardOrderLabel,
     buildSimulationSteps,
@@ -139,6 +145,7 @@ function statusForRoom(
 
 function PlannerPage() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const hoverFrameRef = useRef<number | null>(null);
     const {state, connectionStatus, connectionError} = useProjectState();
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
     const [activePanel, setActivePanel] = useState(0);
@@ -147,6 +154,8 @@ function PlannerPage() {
     const [simulationDelayMs, setSimulationDelayMs] = useState("400");
     const [simulationStatus, setSimulationStatus] = useState("Simulation idle.");
     const [simulationRun, setSimulationRun] = useState<SimulationRun | null>(null);
+    const [inspectedPiece, setInspectedPiece] = useState<PieceHit | null>(null);
+    const [inspectionPinned, setInspectionPinned] = useState(false);
 
     const selectedRoom = useMemo(
         () => roomById(state, selectedRoomId),
@@ -188,6 +197,7 @@ function PlannerPage() {
                     stepIndexByKey: simulationRun.stepIndexByKey,
                 }
                 : null,
+            inspectedBoardKey: inspectedPiece?.boardKey,
         });
 
         const onResize = () => {
@@ -205,12 +215,18 @@ function PlannerPage() {
                         stepIndexByKey: simulationRun.stepIndexByKey,
                     }
                     : null,
+                inspectedBoardKey: inspectedPiece?.boardKey,
             });
         };
 
         window.addEventListener("resize", onResize);
         return () => window.removeEventListener("resize", onResize);
-    }, [state, selectedRoomId, simulationRun]);
+    }, [state, selectedRoomId, simulationRun, inspectedPiece?.boardKey]);
+
+    useEffect(() => {
+        setInspectedPiece(null);
+        setInspectionPinned(false);
+    }, [selectedRoomId]);
 
     useEffect(
         () => () => {
@@ -220,6 +236,102 @@ function PlannerPage() {
         },
         [simulationRun],
     );
+
+    useEffect(
+        () => () => {
+            if (hoverFrameRef.current !== null) {
+                window.cancelAnimationFrame(hoverFrameRef.current);
+            }
+        },
+        [],
+    );
+
+    function pieceAtPointer(
+        canvas: HTMLCanvasElement,
+        clientX: number,
+        clientY: number,
+    ) {
+        if (!state) {
+            return null;
+        }
+        const rectangle = canvas.getBoundingClientRect();
+        return hitTestFloorPiece(
+            state,
+            {width: rectangle.width, height: rectangle.height},
+            {
+                x: clientX - rectangle.left,
+                y: clientY - rectangle.top,
+            },
+        );
+    }
+
+    function handleCanvasPointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
+        if (inspectionPinned || event.pointerType !== "mouse") {
+            return;
+        }
+        if (hoverFrameRef.current !== null) {
+            window.cancelAnimationFrame(hoverFrameRef.current);
+        }
+        const canvas = event.currentTarget;
+        const {clientX, clientY} = event;
+        hoverFrameRef.current = window.requestAnimationFrame(() => {
+            const hit = pieceAtPointer(canvas, clientX, clientY);
+            setInspectedPiece(current => current?.key === hit?.key ? current : hit);
+            hoverFrameRef.current = null;
+        });
+    }
+
+    function handleCanvasPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
+        if (event.pointerType === "mouse") {
+            return;
+        }
+        const hit = pieceAtPointer(
+            event.currentTarget,
+            event.clientX,
+            event.clientY,
+        );
+        setInspectedPiece(hit);
+        setInspectionPinned(Boolean(hit));
+    }
+
+    function handleCanvasKeyDown(event: React.KeyboardEvent<HTMLCanvasElement>) {
+        const navigationKeys = [
+            "ArrowRight",
+            "ArrowDown",
+            "ArrowLeft",
+            "ArrowUp",
+            "Escape",
+        ];
+        if (!state || !navigationKeys.includes(event.key)) {
+            return;
+        }
+        event.preventDefault();
+        if (event.key === "Escape") {
+            setInspectedPiece(null);
+            setInspectionPinned(false);
+            return;
+        }
+
+        const pieces = inspectableFloorPieces(state);
+        if (!pieces.length) {
+            return;
+        }
+        const currentIndex = pieces.findIndex(
+            piece => piece.key === inspectedPiece?.key,
+        );
+        const direction = event.key === "ArrowLeft" || event.key === "ArrowUp"
+            ? -1
+            : 1;
+        const nextIndex = currentIndex < 0
+            ? 0
+            : (currentIndex + direction + pieces.length) % pieces.length;
+        const rectangle = event.currentTarget.getBoundingClientRect();
+        setInspectedPiece({
+            ...pieces[nextIndex],
+            anchor: {x: rectangle.width / 2, y: rectangle.height / 2},
+        });
+        setInspectionPinned(true);
+    }
 
     function stopSimulation(preserveMessage = false) {
         setSimulationRun(current => {
@@ -559,7 +671,32 @@ function PlannerPage() {
                             </div>
                         </div>
                         <div className="canvas-stage">
-                            <canvas id="floorCanvas" ref={canvasRef}></canvas>
+                            <canvas
+                                id="floorCanvas"
+                                ref={canvasRef}
+                                aria-describedby={inspectedPiece ? "boardInspection" : undefined}
+                                aria-label="Floor plan. Use arrow keys to inspect board pieces."
+                                onBlur={() => {
+                                    setInspectedPiece(null);
+                                    setInspectionPinned(false);
+                                }}
+                                onKeyDown={handleCanvasKeyDown}
+                                onPointerDown={handleCanvasPointerDown}
+                                onPointerLeave={() => {
+                                    if (hoverFrameRef.current !== null) {
+                                        window.cancelAnimationFrame(hoverFrameRef.current);
+                                        hoverFrameRef.current = null;
+                                    }
+                                    if (!inspectionPinned) {
+                                        setInspectedPiece(null);
+                                    }
+                                }}
+                                onPointerMove={handleCanvasPointerMove}
+                                tabIndex={0}
+                            ></canvas>
+                            {inspectedPiece && (
+                                <BoardInspection inspection={inspectedPiece} />
+                            )}
                             <div className="canvas-overlay">
                                 <p className="overlay-title">How to read the view</p>
                                 <p className="overlay-copy">
