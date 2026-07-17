@@ -7,157 +7,271 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<header>
-    <div>
-        <h1>Floor Layout Planner</h1>
-        <p>{{ project_name }}</p>
-    </div>
-    <div class="controls">
-        <button id="restartAllButton">Restart all rooms</button>
-    </div>
-</header>
-
-<main>
-    <section class="viewer">
-        <canvas id="floorCanvas"></canvas>
-    </section>
-
-    <aside>
-        <div class="card">
-            <h2>Rooms</h2>
-            <select id="roomSelect"></select>
+<div class="app-shell">
+    <header class="topbar">
+        <div class="brand-block">
+            <p class="eyebrow">Laying Engine Studio</p>
+            <h1>Floor Layout Planner</h1>
+            <p class="project-subtitle">{{ project_name }}</p>
         </div>
+        <div class="topbar-actions">
+            <div class="topbar-note">
+                <span class="note-dot"></span>
+                Live room optimization with physical-board tracking
+            </div>
+            <button id="restartAllButton" class="action-button action-button-primary">
+                Restart all rooms
+            </button>
+        </div>
+    </header>
 
-        <div class="card settings-card">
-            <h2>Settings for <span id="selectedRoomName">room</span></h2>
-            <form id="settingsForm">
-                <label>
-                    Laying direction
-                    <select name="orientation">
-                        <option value="horizontal">Horizontal</option>
-                        <option value="vertical">Vertical</option>
-                    </select>
-                </label>
-                <label>
-                    Start corner
-                    <select name="start_corner">
-                        <option value="upper_left">Upper left</option>
-                        <option value="upper_right">Upper right</option>
-                        <option value="lower_left">Lower left</option>
-                        <option value="lower_right">Lower right</option>
-                    </select>
-                </label>
-
-                <div class="two-columns">
-                    <label>
-                        Expansion gap (mm)
-                        <input name="expansion_gap_mm" type="number" min="0" step="0.5">
-                    </label>
-                    <label>
-                        Minimum piece (mm)
-                        <input name="minimum_piece_length_mm" type="number" min="1" step="1">
-                    </label>
-                    <label>
-                        Minimum joint distance (mm)
-                        <input name="minimum_joint_distance_mm" type="number" min="0" step="1">
-                    </label>
-                    <label>
-                        Stagger step (mm)
-                        <input name="stagger_step_mm" type="number" min="1" step="1">
-                    </label>
+    <main class="workspace">
+        <section class="canvas-column">
+            <section class="hero-panel">
+                <div class="hero-copy">
+                    <p class="eyebrow">Project Monitor</p>
+                    <h2 id="summaryRoomName">Waiting for room data</h2>
+                    <p id="summaryStatusText" class="hero-status">Connecting …</p>
                 </div>
+                <div class="hero-metrics">
+                    <article class="hero-metric">
+                        <span class="hero-label">Direction</span>
+                        <strong id="summaryDirection">–</strong>
+                    </article>
+                    <article class="hero-metric">
+                        <span class="hero-label">Start Corner</span>
+                        <strong id="summaryStartCorner">–</strong>
+                    </article>
+                    <article class="hero-metric">
+                        <span class="hero-label">Progress</span>
+                        <strong id="summaryProgress">–</strong>
+                    </article>
+                    <article class="hero-metric">
+                        <span class="hero-label">Output</span>
+                        <strong id="summaryOutput">–</strong>
+                    </article>
+                </div>
+            </section>
 
-                <details>
-                    <summary>More settings</summary>
-                    <div class="two-columns details-grid">
+            <section class="canvas-card">
+                <div class="canvas-card-header">
+                    <div>
+                        <p class="eyebrow">Layout View</p>
+                        <h2>Board field</h2>
+                    </div>
+                    <div class="legend-pillbar">
+                        <span class="legend-pill">
+                            <span class="legend-swatch legend-swatch-room"></span>
+                            Active room
+                        </span>
+                        <span class="legend-pill">
+                            <span class="legend-swatch legend-swatch-board"></span>
+                            Board labels
+                        </span>
+                        <span class="legend-pill">
+                            <span class="legend-swatch legend-swatch-short"></span>
+                            Short piece warning
+                        </span>
+                    </div>
+                </div>
+                <div class="canvas-stage">
+                    <canvas id="floorCanvas"></canvas>
+                    <div class="canvas-overlay">
+                        <p class="overlay-title">How to read the view</p>
+                        <p class="overlay-copy">
+                            Each board placement shows its laying order and arrow direction.
+                            Hover pieces to inspect shared physical-board identity.
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </section>
+
+        <aside class="control-column">
+            <section class="panel panel-room-picker">
+                <div class="panel-header">
+                    <div>
+                        <p class="eyebrow">Navigator</p>
+                        <h2>Rooms</h2>
+                    </div>
+                    <span class="panel-chip">Live</span>
+                </div>
+                <div id="roomTabs" class="room-tab-grid"></div>
+                <label class="select-label" for="roomSelect">
+                    Room dropdown
+                </label>
+                <select id="roomSelect"></select>
+            </section>
+
+            <section class="panel panel-status">
+                <div class="panel-header">
+                    <div>
+                        <p class="eyebrow">Control Deck</p>
+                        <h2>Status & actions</h2>
+                    </div>
+                    <span id="statusBadge" class="status-badge">Idle</span>
+                </div>
+                <p id="statusText" class="status-text">Connecting …</p>
+                <progress id="progressBar" value="0" max="1"></progress>
+                <div class="room-actions">
+                    <button id="pauseButton" class="action-button">Pause</button>
+                    <button id="resumeButton" class="action-button">Resume</button>
+                    <button id="restartButton" class="action-button action-button-strong">
+                        Restart room
+                    </button>
+                </div>
+            </section>
+
+            <section class="panel panel-metrics">
+                <div class="panel-header">
+                    <div>
+                        <p class="eyebrow">Solver Snapshot</p>
+                        <h2>Best solution</h2>
+                    </div>
+                </div>
+                <div id="bestStats">–</div>
+            </section>
+
+            <section class="panel panel-metrics">
+                <div class="panel-header">
+                    <div>
+                        <p class="eyebrow">Runtime Telemetry</p>
+                        <h2>Profiling</h2>
+                    </div>
+                </div>
+                <div id="profileStats">–</div>
+            </section>
+
+            <section class="panel panel-output">
+                <div class="panel-header">
+                    <div>
+                        <p class="eyebrow">Artifacts</p>
+                        <h2>Output path</h2>
+                    </div>
+                </div>
+                <p id="outputFiles" class="output-path">
+                    Generated per room when the search finishes.
+                </p>
+            </section>
+
+            <section class="panel settings-card">
+                <div class="panel-header">
+                    <div>
+                        <p class="eyebrow">Room Tuning</p>
+                        <h2>Settings for <span id="selectedRoomName">room</span></h2>
+                    </div>
+                </div>
+                <form id="settingsForm">
+                    <div class="form-row">
                         <label>
-                            Board length (mm)
-                            <input name="board_length_mm" type="number" min="1" step="1">
+                            Laying direction
+                            <select name="orientation">
+                                <option value="horizontal">Horizontal</option>
+                                <option value="vertical">Vertical</option>
+                            </select>
                         </label>
                         <label>
-                            Board width (mm)
-                            <input name="board_width_mm" type="number" min="1" step="0.1">
-                        </label>
-                        <label>
-                            Search step (mm)
-                            <input name="optimization_step_mm" type="number" min="0.1" step="0.1">
-                        </label>
-                        <label>
-                            Row width step (mm)
-                            <input name="row_width_optimization_step_mm" type="number" min="0.1" step="0.1">
-                        </label>
-                        <label>
-                            Absolute min. row width (mm)
-                            <input name="minimum_row_width_mm" type="number" min="1" step="1">
-                        </label>
-                        <label>
-                            Preferred min. row width (mm)
-                            <input name="preferred_minimum_row_width_mm" type="number" min="1" step="1">
-                        </label>
-                        <label>
-                            Workers
-                            <input name="optimizer_workers" type="number" min="1" step="1">
-                        </label>
-                        <label>
-                            Show every Nth result
-                            <input name="preview_every_n_results" type="number" min="1" step="1">
-                        </label>
-                        <label>
-                            Local optimize top N
-                            <input name="local_optimize_top_n" type="number" min="1" step="1">
-                        </label>
-                        <label>
-                            Delay per new best (ms)
-                            <input name="frame_delay_ms" type="number" min="0" step="1">
-                        </label>
-                        <label>
-                            Waste (%)
-                            <input name="waste_percent" type="number" min="0" step="0.1">
-                        </label>
-                        <label>
-                            Boards per pack
-                            <input name="boards_per_pack" type="number" min="1" step="1">
+                            Start corner
+                            <select name="start_corner">
+                                <option value="upper_left">Upper left</option>
+                                <option value="upper_right">Upper right</option>
+                                <option value="lower_left">Lower left</option>
+                                <option value="lower_right">Lower right</option>
+                            </select>
                         </label>
                     </div>
-                </details>
 
-                <div id="validationMessage" class="form-message"></div>
+                    <div class="form-grid">
+                        <label>
+                            Expansion gap (mm)
+                            <input name="expansion_gap_mm" type="number" min="0" step="0.5">
+                        </label>
+                        <label>
+                            Minimum piece (mm)
+                            <input name="minimum_piece_length_mm" type="number" min="1" step="1">
+                        </label>
+                        <label>
+                            Minimum joint distance (mm)
+                            <input name="minimum_joint_distance_mm" type="number" min="0" step="1">
+                        </label>
+                        <label>
+                            Stagger step (mm)
+                            <input name="stagger_step_mm" type="number" min="1" step="1">
+                        </label>
+                    </div>
 
-                <div class="form-actions">
-                    <button type="submit" class="primary">Apply and restart room</button>
-                    <button type="button" id="saveConfigButton">Save room to JSON</button>
-                    <button type="button" id="resetConfigButton">Reset room</button>
-                </div>
-            </form>
-        </div>
+                    <details>
+                        <summary>Advanced layout parameters</summary>
+                        <div class="form-grid form-grid-advanced">
+                            <label>
+                                Board length (mm)
+                                <input name="board_length_mm" type="number" min="1" step="1">
+                            </label>
+                            <label>
+                                Board width (mm)
+                                <input name="board_width_mm" type="number" min="1" step="0.1">
+                            </label>
+                            <label>
+                                Search step (mm)
+                                <input name="optimization_step_mm" type="number" min="0.1" step="0.1">
+                            </label>
+                            <label>
+                                Row width step (mm)
+                                <input name="row_width_optimization_step_mm" type="number" min="0.1" step="0.1">
+                            </label>
+                            <label>
+                                Absolute min. row width (mm)
+                                <input name="minimum_row_width_mm" type="number" min="1" step="1">
+                            </label>
+                            <label>
+                                Preferred min. row width (mm)
+                                <input name="preferred_minimum_row_width_mm" type="number" min="1" step="1">
+                            </label>
+                            <label>
+                                Workers
+                                <input name="optimizer_workers" type="number" min="1" step="1">
+                            </label>
+                            <label>
+                                Show every Nth result
+                                <input name="preview_every_n_results" type="number" min="1" step="1">
+                            </label>
+                            <label>
+                                Local optimize top N
+                                <input name="local_optimize_top_n" type="number" min="1" step="1">
+                            </label>
+                            <label>
+                                Delay per new best (ms)
+                                <input name="frame_delay_ms" type="number" min="0" step="1">
+                            </label>
+                            <label>
+                                Waste (%)
+                                <input name="waste_percent" type="number" min="0" step="0.1">
+                            </label>
+                            <label>
+                                Boards per pack
+                                <input name="boards_per_pack" type="number" min="1" step="1">
+                            </label>
+                        </div>
+                    </details>
 
-        <div class="card">
-            <h2>Status</h2>
-            <p id="statusText">Connecting …</p>
-            <progress id="progressBar" value="0" max="1"></progress>
-            <div class="room-actions">
-                <button id="pauseButton">Pause</button>
-                <button id="resumeButton">Resume</button>
-                <button id="restartButton">Restart room</button>
-            </div>
-        </div>
+                    <div id="validationMessage" class="form-message"></div>
 
-        <div class="card">
-            <h2>Best solution</h2>
-            <div id="bestStats">–</div>
-        </div>
-
-        <div class="card">
-            <h2>Profiling</h2>
-            <div id="profileStats">–</div>
-        </div>
-
-        <div class="card">
-            <h2>Output</h2>
-            <p id="outputFiles">Generated per room when the search finishes.</p>
-        </div>
-    </aside>
-</main>
+                    <div class="form-actions">
+                        <button type="submit" class="action-button action-button-primary">
+                            Apply and restart room
+                        </button>
+                        <button type="button" id="saveConfigButton" class="action-button">
+                            Save room to JSON
+                        </button>
+                        <button type="button" id="resetConfigButton" class="action-button">
+                            Reset room
+                        </button>
+                    </div>
+                </form>
+            </section>
+        </aside>
+    </main>
+</div>
 
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>

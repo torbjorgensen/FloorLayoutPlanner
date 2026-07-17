@@ -2,14 +2,22 @@ const canvas = document.getElementById("floorCanvas");
 const context = canvas.getContext("2d");
 
 const roomSelect = document.getElementById("roomSelect");
+const roomTabs = document.getElementById("roomTabs");
 const settingsForm = document.getElementById("settingsForm");
 const selectedRoomName = document.getElementById("selectedRoomName");
 const statusText = document.getElementById("statusText");
+const statusBadge = document.getElementById("statusBadge");
 const progressBar = document.getElementById("progressBar");
 const bestStats = document.getElementById("bestStats");
 const outputFiles = document.getElementById("outputFiles");
 const profileStats = document.getElementById("profileStats");
 const validationMessage = document.getElementById("validationMessage");
+const summaryRoomName = document.getElementById("summaryRoomName");
+const summaryStatusText = document.getElementById("summaryStatusText");
+const summaryDirection = document.getElementById("summaryDirection");
+const summaryStartCorner = document.getElementById("summaryStartCorner");
+const summaryProgress = document.getElementById("summaryProgress");
+const summaryOutput = document.getElementById("summaryOutput");
 
 const POLL_INTERVAL_MS = 500;
 
@@ -29,6 +37,50 @@ function selectedRoom() {
             room => room.id === selectedRoomId,
         ) || null
     );
+}
+
+
+function titleCaseWords(value) {
+    return String(value || "–")
+        .split(/[_\s-]+/)
+        .filter(Boolean)
+        .map(
+            word =>
+                word.charAt(0).toUpperCase()
+                + word.slice(1),
+        )
+        .join(" ");
+}
+
+
+function setText(element, value) {
+    if (element) {
+        element.textContent = value;
+    }
+}
+
+
+function syncRoomTabs() {
+    if (!roomTabs) {
+        return;
+    }
+
+    for (const button of roomTabs.querySelectorAll(".room-tab")) {
+        button.classList.toggle(
+            "is-active",
+            button.dataset.roomId === selectedRoomId,
+        );
+    }
+}
+
+
+function selectRoom(roomId) {
+    selectedRoomId = roomId;
+    formRoomId = null;
+    roomSelect.value = roomId;
+    syncRoomTabs();
+    updateSidePanel();
+    draw();
 }
 
 
@@ -147,14 +199,44 @@ function populateRoomSelect() {
     }
 
     roomSelect.value = selectedRoomId;
+    populateRoomTabs();
+}
+
+
+function populateRoomTabs() {
+    if (!roomTabs || !latestState?.rooms) {
+        return;
+    }
+
+    roomTabs.innerHTML = "";
+
+    for (const room of latestState.rooms) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "room-tab";
+        button.dataset.roomId = room.id;
+
+        const orientation = titleCaseWords(
+            room.settings?.orientation || "–",
+        );
+        const startCorner = titleCaseWords(
+            room.settings?.start_corner || "upper_left",
+        );
+
+        button.innerHTML = `
+            <span class="room-tab-title">${room.name}</span>
+            <span class="room-tab-meta">${orientation} · ${startCorner}</span>
+        `;
+        button.addEventListener("click", () => selectRoom(room.id));
+        roomTabs.appendChild(button);
+    }
+
+    syncRoomTabs();
 }
 
 
 roomSelect.addEventListener("change", () => {
-    selectedRoomId = roomSelect.value;
-    formRoomId = null;
-    updateSidePanel();
-    draw();
+    selectRoom(roomSelect.value);
 });
 
 
@@ -496,6 +578,12 @@ function updateSidePanel() {
         continuousConnectionForRoom(room.id);
     const status = statusForRoom(room);
     const candidate = candidateForRoom(room);
+    const orientation = titleCaseWords(
+        room.settings?.orientation,
+    );
+    const startCorner = titleCaseWords(
+        room.settings?.start_corner,
+    );
 
     selectedRoomName.textContent = room.name;
 
@@ -505,6 +593,16 @@ function updateSidePanel() {
 
     statusText.textContent = status.text;
     statusText.dataset.state = status.kind;
+    statusBadge.textContent = titleCaseWords(status.kind);
+    statusBadge.dataset.state = status.kind;
+    setText(summaryRoomName, room.name);
+    setText(summaryStatusText, status.text);
+    setText(summaryDirection, orientation);
+    setText(summaryStartCorner, startCorner);
+    setText(
+        summaryOutput,
+        latestState?.output_dir || "–",
+    );
 
     bestStats.innerHTML =
         statsHtml(candidate, connection);
@@ -516,6 +614,10 @@ function updateSidePanel() {
 
     outputFiles.textContent =
         latestState?.output_dir || "–";
+    setText(
+        summaryProgress,
+        `${Math.round(progressBar.value)}/${Math.round(progressBar.max)}`,
+    );
 }
 
 
