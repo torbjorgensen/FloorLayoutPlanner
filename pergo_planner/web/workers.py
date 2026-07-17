@@ -44,7 +44,6 @@ class WorkerManager:
 def create_worker_manager(
     state: ProjectState,
     output_dir: Path,
-    config_path: Path,
     notify_state_changed: Callable[[], None],
 ) -> WorkerManager:
     shutdown_requested = threading.Event()
