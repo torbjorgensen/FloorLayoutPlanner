@@ -164,6 +164,46 @@ def test_vertical_lower_right_corner_starts_right_and_down() -> None:
     assert first_piece.y2 == pytest.approx(3550)
 
 
+def test_lower_right_start_corner_mirrors_row_fragments() -> None:
+    floor = build_floor_polygon(
+        [{"x": 0, "y": 0, "width": 480, "height": 3550}],
+        expansion_gap=0,
+    )
+
+    fragments = create_row_fragments(
+        floor=floor,
+        board_width=240,
+        orientation="vertical",
+        row_width_offset=0,
+        start_corner="lower_right",
+    )
+
+    assert fragments
+    assert fragments[0].min_x == pytest.approx(240)
+    assert fragments[0].max_x == pytest.approx(480)
+
+
+def test_hallway_geometry_is_completely_covered(
+    hallway_floor,
+    hallway_settings,
+) -> None:
+    pieces = create_plan(
+        floor=hallway_floor,
+        board_length=2050,
+        board_width=240,
+        orientation=hallway_settings["orientation"],
+        stagger_step=float(hallway_settings["stagger_step_mm"]),
+        minimum_piece_length=float(hallway_settings["minimum_piece_length_mm"]),
+    )
+
+    covered = pieces_union(pieces)
+
+    assert covered.symmetric_difference(hallway_floor).area == pytest.approx(
+        0,
+        abs=1e-4,
+    )
+
+
 def test_invalid_orientation_is_rejected(l_floor) -> None:
     with pytest.raises(ValueError, match="orientation"):
         create_plan(

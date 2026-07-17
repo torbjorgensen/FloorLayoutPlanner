@@ -466,6 +466,7 @@ def _place_lane_boards(
 
     placements: list[BoardPlacement] = []
     cursor = lane_start
+    reused_starter = False
 
     def new_board_id() -> tuple[str, int]:
         number = next(board_numbers)
@@ -474,12 +475,10 @@ def _place_lane_boards(
     if (
         starter_offcut is not None
         and starter_offcut.length >= minimum_piece_length
+        and starter_offcut.length <= remaining + _EPSILON
         and abs(starter_offcut.lane_start - lane_start) <= 1.0
     ):
-        usable = min(
-            starter_offcut.length,
-            remaining,
-        )
+        usable = starter_offcut.length
         placements.append(
             BoardPlacement(
                 x1=cursor,
@@ -491,6 +490,7 @@ def _place_lane_boards(
         )
         cursor += usable
         remaining -= usable
+        reused_starter = True
     else:
         first_length = min(
             starter_length,
@@ -528,6 +528,13 @@ def _place_lane_boards(
         remaining -= used_length
 
     final = placements[-1]
+
+    if (
+        reused_starter
+        and starter_offcut is not None
+        and final.physical_board_id == starter_offcut.physical_board_id
+    ):
+        return placements, None
 
     if final.is_full_length:
         return placements, None

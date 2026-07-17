@@ -119,3 +119,53 @@ def test_no_physical_board_is_reused_in_three_rows() -> None:
         rows_by_board[board_id].add(row)
 
     assert all(len(rows) <= 2 for rows in rows_by_board.values())
+
+
+def test_hallway_reuses_offcuts_across_rows(
+    stue_project_config,
+    hallway_floor,
+    hallway_settings,
+) -> None:
+    board = stue_project_config["board"]
+    pieces = create_plan(
+        floor=hallway_floor,
+        board_length=float(board["length_mm"]),
+        board_width=float(board["width_mm"]),
+        orientation=hallway_settings["orientation"],
+        stagger_step=float(hallway_settings["stagger_step_mm"]),
+        minimum_piece_length=float(hallway_settings["minimum_piece_length_mm"]),
+        saw_kerf_mm=SAW_KERF_MM,
+    )
+    grouped = group_by_board(pieces)
+
+    reused = [
+        fragments
+        for fragments in grouped.values()
+        if len({piece.row for piece in fragments}) == 2
+    ]
+
+    assert reused
+
+
+def test_hallway_does_not_reuse_one_physical_board_in_three_rows(
+    stue_project_config,
+    hallway_floor,
+    hallway_settings,
+) -> None:
+    board = stue_project_config["board"]
+    pieces = create_plan(
+        floor=hallway_floor,
+        board_length=float(board["length_mm"]),
+        board_width=float(board["width_mm"]),
+        orientation=hallway_settings["orientation"],
+        stagger_step=float(hallway_settings["stagger_step_mm"]),
+        minimum_piece_length=float(hallway_settings["minimum_piece_length_mm"]),
+        saw_kerf_mm=SAW_KERF_MM,
+    )
+    grouped = group_by_board(pieces)
+    rows_per_board = {
+        board_id: {piece.row for piece in fragments}
+        for board_id, fragments in grouped.items()
+    }
+
+    assert all(len(rows) <= 2 for rows in rows_per_board.values())
