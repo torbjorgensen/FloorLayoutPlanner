@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import signal
 import threading
 import webbrowser
 from pathlib import Path
@@ -41,16 +42,29 @@ def main() -> None:
     print("Press Ctrl+C to stop the server.")
 
     if not args.no_browser:
-        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+        browser_timer = threading.Timer(1.0, lambda: webbrowser.open(url))
+        browser_timer.daemon = True
+        browser_timer.start()
 
-    runtime.socketio.run(
-        runtime.app,
-        host=args.host,
-        port=args.port,
-        debug=False,
-        use_reloader=False,
-        allow_unsafe_werkzeug=True,
-    )
+    def request_shutdown(_signal_number, _frame) -> None:
+        """Turn service-manager termination into normal Python cleanup."""
+        raise KeyboardInterrupt
+
+    previous_sigterm = signal.signal(signal.SIGTERM, request_shutdown)
+    try:
+        runtime.socketio.run(
+            runtime.app,
+            host=args.host,
+            port=args.port,
+            debug=False,
+            use_reloader=False,
+            allow_unsafe_werkzeug=True,
+        )
+    except KeyboardInterrupt:
+        pass
+    finally:
+        signal.signal(signal.SIGTERM, previous_sigterm)
+        runtime.shutdown()
 
 
 if __name__ == "__main__":

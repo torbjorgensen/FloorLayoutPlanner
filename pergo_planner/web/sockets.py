@@ -36,6 +36,15 @@ class StateUpdateEmitter:
         with self.lock:
             self.clients.discard(session_id)
 
+    def close(self) -> None:
+        """Cancel a pending broadcast timer during application shutdown."""
+        with self.lock:
+            self.clients.clear()
+            timer = self.timer
+            self.timer = None
+        if timer is not None:
+            timer.cancel()
+
     def notify(self) -> None:
         emit_now = False
         with self.lock:

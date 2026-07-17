@@ -5,6 +5,7 @@ from concurrent.futures import (
     ProcessPoolExecutor,
     as_completed,
 )
+from multiprocessing import get_context
 from typing import Iterable
 
 from shapely.geometry import Polygon
@@ -97,6 +98,10 @@ def _parallel_map(
 
     with ProcessPoolExecutor(
         max_workers=max_workers,
+        # Optimizers are started after Flask opens its listening socket. The
+        # Linux default "fork" context would copy that descriptor into every
+        # worker and keep the port occupied after the web process exits.
+        mp_context=get_context("spawn"),
     ) as executor:
         futures = [executor.submit(function, item) for item in inputs]
 

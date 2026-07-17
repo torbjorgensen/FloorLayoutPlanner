@@ -38,6 +38,7 @@ class WorkerManager:
     room_by_id: Callable[[dict[str, Any], str], dict[str, Any]]
     start_room: Callable[[str, dict[str, Any]], None]
     start_all: Callable[[dict[str, Any]], None]
+    shutdown: Callable[[], None]
 
 
 def create_worker_manager(
@@ -46,6 +47,25 @@ def create_worker_manager(
     config_path: Path,
     notify_state_changed: Callable[[], None],
 ) -> WorkerManager:
+    shutdown_requested = threading.Event()
+    active_threads: set[threading.Thread] = set()
+    active_threads_lock = threading.Lock()
+
+    def start_background(target, *args) -> None:
+        """Start and track one optimizer coordinator thread."""
+
+        def run() -> None:
+            try:
+                target(*args)
+            finally:
+                with active_threads_lock:
+                    active_threads.discard(threading.current_thread())
+
+        thread = threading.Thread(target=run, daemon=True)
+        with active_threads_lock:
+            active_threads.add(thread)
+        thread.start()
+
     def room_by_id(config: dict[str, Any], room_id: str) -> dict[str, Any]:
         room = next(
             (item for item in config["rooms"] if item["id"] == room_id),
@@ -192,6 +212,8 @@ def create_worker_manager(
                 inputs=inputs,
                 workers=workers,
             ):
+                if shutdown_requested.is_set():
+                    return
                 coarse_completed += 1
                 coarse_results.append(candidate)
 
@@ -270,6 +292,8 @@ def create_worker_manager(
                 inputs=refine_inputs,
                 workers=min(workers, max(1, len(refine_inputs))),
             ):
+                if shutdown_requested.is_set():
+                    return
                 refine_completed += 1
                 refined_results.append(candidate)
 
@@ -460,6 +484,8 @@ def create_worker_manager(
             refined_ranked = []
             coarse_completed = 0
             for candidate in parallel_coarse_generator(inputs=inputs, workers=workers):
+                if shutdown_requested.is_set():
+                    return
                 if generation != continuous_state.generation:
                     return
                 cut_plan = best_cut_plan(
@@ -517,6 +543,8 @@ def create_worker_manager(
                 inputs=refine_inputs,
                 workers=min(workers, max(1, len(refine_inputs))),
             ):
+                if shutdown_requested.is_set():
+                    return
                 cut_plan = best_cut_plan(
                     candidate,
                     connection,
@@ -616,6 +644,8 @@ def create_worker_manager(
             notify_state_changed()
 
     def start_continuous(connection, config: dict[str, Any]) -> None:
+        if shutdown_requested.is_set():
+            return
         continuous_state = state.continuous[connection.connection_id]
         continuous_state.generation += 1
         generation = continuous_state.generation
@@ -642,13 +672,13 @@ def create_worker_manager(
             "message": "Starting transition calculation",
         }
         notify_state_changed()
-        threading.Thread(
-            target=continuous_worker,
-            args=(connection, generation, copy.deepcopy(config)),
-            daemon=True,
-        ).start()
+        start_background(
+            continuous_worker, connection, generation, copy.deepcopy(config)
+        )
 
     def start_room(room_id: str, config: dict[str, Any]) -> None:
+        if shutdown_requested.is_set():
+            return
         room = room_by_id(config, room_id)
         local_floor(config, room)  # validate synchronously
 
@@ -683,11 +713,7 @@ def create_worker_manager(
             }
 
         notify_state_changed()
-        threading.Thread(
-            target=optimizer_worker,
-            args=(room_id, generation, copy.deepcopy(config)),
-            daemon=True,
-        ).start()
+        start_background(optimizer_worker, room_id, generation, copy.deepcopy(config))
 
     def start_all(config: dict[str, Any]) -> None:
         for room in config["rooms"]:
@@ -696,8 +722,26 @@ def create_worker_manager(
             if connection.connection_type == "continuous_then_cut":
                 start_continuous(connection, config)
 
+    def shutdown() -> None:
+        """Cancel coordinators and briefly wait for them to release resources."""
+        shutdown_requested.set()
+        with state.lock:
+            for room in state.rooms.values():
+                room.generation += 1
+                room.running = False
+            for continuous in state.continuous.values():
+                continuous.generation += 1
+                continuous.running = False
+
+        with active_threads_lock:
+            threads = list(active_threads)
+        deadline = time.monotonic() + 2.0
+        for thread in threads:
+            thread.join(timeout=max(0.0, deadline - time.monotonic()))
+
     return WorkerManager(
         room_by_id=room_by_id,
         start_room=start_room,
         start_all=start_all,
+        shutdown=shutdown,
     )
