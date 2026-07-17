@@ -42,3 +42,4 @@ output/
 *_output/
 *.png
 *.csv
+*.tsbuildinfo

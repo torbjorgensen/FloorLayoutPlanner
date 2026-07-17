@@ -85,3 +85,17 @@ Compare two configs and print timing deltas for the same room ids:
 ```bash
 python tools/benchmark_engine.py stue_project.json --compare-config stue_project_optimized.json --room gang --mode plan --repeat 20
 ```
+
+## Pre-commit checks
+
+Install the hooks once:
+
+```bash
+pre-commit install
+```
+
+Frontend changes run the Vitest suite and production build automatically. To run every check manually:
+
+```bash
+pre-commit run --all-files
+```

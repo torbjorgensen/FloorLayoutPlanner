@@ -11,3 +11,12 @@ repos:
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: frontend-check
+        name: Frontend tests and production build
+        entry: npm --prefix frontend run check
+        language: system
+        pass_filenames: false
+        files: ^frontend/

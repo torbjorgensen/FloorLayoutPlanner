@@ -53,6 +53,8 @@ jobs:
           python -m compileall .
 
       - name: Verify formatting
+        env:
+          SKIP: frontend-check
         run: |
           pre-commit run --all-files
 
@@ -73,19 +75,14 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: frontend/package.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: frontend
         run: |
-          npm install
+          npm ci
 
-      - name: Run frontend tests
+      - name: Test and build frontend
         working-directory: frontend
         run: |
-          npm test -- --run
-
-      - name: Build frontend
-        working-directory: frontend
-        run: |
-          npm run build
+          npm run check
