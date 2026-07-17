@@ -701,3 +701,327 @@ summary {
         margin-top: 12px;
     }
 }
+
+/* Compact desktop workspace */
+@media (min-width: 1000px) {
+    html, body, #root {
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .app-shell {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        height: 100vh;
+        padding: 12px;
+        background: #e7ece9;
+    }
+
+    .topbar {
+        align-items: center;
+        min-height: 68px;
+        padding: 12px 18px;
+        border: 0;
+        border-radius: 16px;
+        color: #f7fbf9;
+        background: linear-gradient(120deg, #103c32, #075f4a);
+        box-shadow: 0 8px 24px rgba(12, 45, 37, 0.18);
+    }
+
+    .brand-block {
+        display: grid;
+        grid-template-columns: auto auto;
+        align-items: baseline;
+        column-gap: 16px;
+    }
+
+    .brand-block .eyebrow {
+        grid-column: 1 / -1;
+        margin-bottom: 2px;
+        color: #8fdbc8;
+        font-size: 0.65rem;
+    }
+
+    .brand-block h1 {
+        font-size: 1.45rem;
+        letter-spacing: -0.02em;
+    }
+
+    .project-subtitle {
+        margin: 0;
+        color: rgba(255,255,255,.72);
+        font-size: .86rem;
+    }
+
+    .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .topbar-note {
+        padding: 8px 12px;
+        border-color: rgba(255,255,255,.12);
+        color: rgba(255,255,255,.8);
+        background: rgba(255,255,255,.08);
+        font-size: .8rem;
+    }
+
+    .topbar .action-button-primary {
+        color: #103c32;
+        background: #f1c98e;
+    }
+
+    .workspace {
+        grid-template-columns: minmax(0, 1fr) 360px;
+        min-height: 0;
+        height: 100%;
+        gap: 12px;
+        margin-top: 12px;
+    }
+
+    .canvas-column {
+        grid-template-rows: auto minmax(0, 1fr);
+        min-height: 0;
+        gap: 10px;
+    }
+
+    .hero-panel {
+        grid-template-columns: minmax(200px, .8fr) minmax(520px, 1.6fr);
+        align-items: center;
+        min-height: 82px;
+        padding: 14px 18px;
+        border-radius: 16px;
+    }
+
+    .hero-copy h2 {
+        font-size: 1.3rem;
+    }
+
+    .hero-status {
+        margin-top: 4px;
+        font-size: .82rem;
+        line-height: 1.3;
+    }
+
+    .hero-metrics {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .hero-metric {
+        padding: 9px 11px;
+        border-radius: 10px;
+    }
+
+    .hero-label {
+        font-size: .62rem;
+    }
+
+    .hero-metric strong {
+        margin-top: 3px;
+        overflow: hidden;
+        font-size: .84rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .canvas-card {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        padding: 14px;
+        border-radius: 16px;
+    }
+
+    .canvas-card-header {
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .canvas-card-header .eyebrow {
+        display: none;
+    }
+
+    .canvas-card-header h2 {
+        font-size: 1.05rem;
+    }
+
+    .canvas-header-tools {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .legend-pillbar {
+        display: none;
+    }
+
+    .simulation-controls {
+        padding: 5px 7px;
+        border-radius: 10px;
+    }
+
+    .simulation-controls input {
+        width: 72px;
+        padding: 6px 8px;
+    }
+
+    .simulation-controls .action-button {
+        min-height: 32px;
+        padding: 4px 10px;
+    }
+
+    .canvas-stage {
+        flex: 1;
+        min-height: 0;
+    }
+
+    #floorCanvas {
+        width: 100%;
+        height: 100%;
+        min-height: 340px;
+    }
+
+    .canvas-overlay {
+        max-width: 250px;
+        padding: 10px 12px;
+    }
+
+    .canvas-overlay .overlay-copy:not(.overlay-copy-strong),
+    .canvas-overlay .overlay-title {
+        display: none;
+    }
+
+    .control-column {
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr);
+        min-height: 0;
+        gap: 8px;
+    }
+
+    .panel {
+        padding: 14px;
+        border-radius: 14px;
+    }
+
+    .panel-room-picker {
+        padding: 12px;
+    }
+
+    .panel-room-picker .panel-header,
+    .panel-room-picker > .MuiFormControl-root {
+        display: none;
+    }
+
+    .room-tab-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        margin: 0;
+    }
+
+    .room-tab {
+        min-height: 44px;
+        padding: 7px 9px !important;
+        border-radius: 9px !important;
+    }
+
+    .room-tab-meta {
+        font-size: .66rem;
+    }
+
+    .control-tabs {
+        min-height: 40px;
+        border-radius: 12px;
+        background: rgba(255,255,255,.8);
+    }
+
+    .control-tabs .MuiTab-root {
+        min-height: 40px;
+        padding: 7px 10px;
+        font-size: .78rem;
+        font-weight: 800;
+    }
+
+    .control-panel-stack,
+    .settings-card {
+        min-height: 0;
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+
+    .control-panel-stack {
+        display: grid;
+        align-content: start;
+        gap: 8px;
+    }
+
+    .control-panel-stack .panel-header h2,
+    .settings-card .panel-header h2 {
+        font-size: 1rem;
+    }
+
+    .control-panel-stack .eyebrow,
+    .settings-card .eyebrow {
+        margin-bottom: 3px;
+        font-size: .62rem;
+    }
+
+    .status-text {
+        margin: 8px 0;
+        font-size: .8rem;
+    }
+
+    .room-actions,
+    .form-actions {
+        gap: 6px;
+    }
+
+    .room-actions .action-button,
+    .form-actions .action-button {
+        min-height: 32px;
+        padding: 4px 8px;
+        font-size: .72rem;
+    }
+
+    .stat-row {
+        padding: 6px 0;
+        font-size: .77rem;
+    }
+
+    .panel-output {
+        display: none;
+    }
+
+    .settings-card {
+        padding: 14px;
+    }
+
+    .settings-card form {
+        margin-top: 10px;
+    }
+
+    .settings-card input,
+    .settings-card select {
+        padding: 8px 9px;
+    }
+
+    .settings-card label {
+        gap: 4px;
+        font-size: .72rem;
+    }
+
+    .form-grid,
+    .form-row {
+        gap: 8px;
+    }
+
+    .form-grid {
+        margin-top: 8px;
+    }
+
+    .settings-card details {
+        margin-top: 10px;
+    }
+}

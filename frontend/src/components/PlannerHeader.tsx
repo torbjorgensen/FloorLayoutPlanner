@@ -20,7 +20,7 @@ export function PlannerHeader({projectName, onRestartAll}: PlannerHeaderProps) {
             <div className="topbar-actions">
                 <div className="topbar-note">
                     <span className="note-dot" />
-                    React UI with live backend optimization
+                    Live optimization workspace
                 </div>
                 <ActionButton
                     className="action-button action-button-primary"

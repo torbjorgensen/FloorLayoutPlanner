@@ -1,4 +1,6 @@
 import {useEffect, useMemo, useRef, useState} from "react";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
 import {ActionButton} from "../components/ActionButton";
 import {MetricRows} from "../components/MetricRows";
 import {PlannerHeader} from "../components/PlannerHeader";
@@ -139,6 +141,7 @@ function PlannerPage() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const [state, setState] = useState<ProjectState | null>(null);
     const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+    const [activePanel, setActivePanel] = useState(0);
     const [formState, setFormState] = useState<FormState>({});
     const [validationMessage, setValidationMessage] = useState("Ready.");
     const [simulationDelayMs, setSimulationDelayMs] = useState("400");
@@ -604,6 +607,18 @@ function PlannerPage() {
                         selectedRoomId={selectedRoomId}
                         onSelectRoom={selectRoom}
                     />
+                    <Tabs
+                        aria-label="Planner controls"
+                        className="control-tabs"
+                        onChange={(_event, value: number) => setActivePanel(value)}
+                        value={activePanel}
+                        variant="fullWidth"
+                    >
+                        <Tab label="Overview" />
+                        <Tab label="Room settings" />
+                    </Tabs>
+                    {activePanel === 0 && (
+                        <div className="control-panel-stack">
 
                     <section className="panel panel-status">
                         <div className="panel-header">
@@ -730,7 +745,10 @@ function PlannerPage() {
                             {state?.output_dir || "Generated per room when finished."}
                         </p>
                     </section>
+                        </div>
+                    )}
 
+                    {activePanel === 1 && (
                     <section className="panel settings-card">
                         <div className="panel-header">
                             <div>
@@ -856,6 +874,7 @@ function PlannerPage() {
                             </p>
                         </form>
                     </section>
+                    )}
                 </aside>
             </main>
         </div>
