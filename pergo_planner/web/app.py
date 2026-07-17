@@ -26,6 +26,7 @@ class PlannerApplication:
     state: ProjectState
     output_dir: Path
     start_all: Callable[[dict[str, Any]], None]
+    shutdown: Callable[[], None]
 
 
 def create_app(config_path: Path, *, start_workers: bool = True) -> PlannerApplication:
@@ -95,6 +96,11 @@ def create_app(config_path: Path, *, start_workers: bool = True) -> PlannerAppli
     state_emitter = StateUpdateEmitter(socketio, socket_state_payload)
     register_state_socket_handlers(socketio, state_emitter)
 
+    def shutdown() -> None:
+        """Release timers and optimizer coordinators owned by this app."""
+        state_emitter.close()
+        workers.shutdown()
+
     register_command_routes(
         app,
         state=state,
@@ -114,4 +120,5 @@ def create_app(config_path: Path, *, start_workers: bool = True) -> PlannerAppli
         state=state,
         output_dir=output_dir,
         start_all=start_all,
+        shutdown=shutdown,
     )

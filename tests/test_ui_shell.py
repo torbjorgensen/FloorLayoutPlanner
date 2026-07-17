@@ -61,3 +61,13 @@ def test_flask_backend_serves_frontend_build_or_dev_url() -> None:
     assert "socketio = SocketIO(" in backend
     assert "cors_allowed_origins=socket_allowed_origins" in backend
     assert '@app.get("/api/state")' not in backend
+
+
+def test_dev_script_owns_and_stops_complete_process_groups() -> None:
+    script = project_file("tools/dev.sh").read_text(encoding="utf-8")
+
+    assert "setsid env FRONTEND_DEV_URL=" in script
+    assert "setsid env VITE_API_PROXY_TARGET=" in script
+    assert 'kill -TERM -- "-$pid"' in script
+    assert 'kill -KILL -- "-$pid"' in script
+    assert 'wait -n "$BACKEND_PID" "$FRONTEND_PID"' in script
