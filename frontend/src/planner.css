@@ -750,7 +750,9 @@ summary {
 
 /* Compact desktop workspace */
 @media (min-width: 1000px) {
-    html, body, #root {
+    html.planner-workspace-active,
+    html.planner-workspace-active body,
+    html.planner-workspace-active #root {
         height: 100%;
         overflow: hidden;
     }

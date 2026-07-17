@@ -167,6 +167,13 @@ function PlannerPage({projectId}: PlannerPageProps) {
     const [inspectedPiece, setInspectedPiece] = useState<PieceHit | null>(null);
     const [inspectionPinned, setInspectionPinned] = useState(false);
 
+    useEffect(() => {
+        document.documentElement.classList.add("planner-workspace-active");
+        return () => {
+            document.documentElement.classList.remove("planner-workspace-active");
+        };
+    }, []);
+
     const selectedRoom = useMemo(
         () => roomById(state, selectedRoomId),
         [state, selectedRoomId],
