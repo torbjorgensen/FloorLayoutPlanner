@@ -98,10 +98,18 @@ function inspection(key: string, boardKey: string): PieceHit {
 
 const first = inspection("piece-1", "B00001");
 const second = inspection("piece-2", "B00002");
+const firstOffcut = {
+    ...inspection("piece-3", "B00001"),
+    roomName: "Kitchen",
+    piece: {
+        ...inspection("piece-3", "B00001").piece,
+        length: 325,
+    },
+};
 
 function renderPlanner(projectState = state) {
     inspectionMocks.state = projectState;
-    inspectionMocks.pieces.mockReturnValue([first, second]);
+    inspectionMocks.pieces.mockReturnValue([first, second, firstOffcut]);
     inspectionMocks.hit.mockImplementation((_, __, point: {x: number}) =>
         point.x < 300 ? first : point.x < 600 ? second : null,
     );
@@ -141,6 +149,11 @@ describe("planner board inspection interactions", () => {
 
         fireEvent.pointerMove(canvas, {pointerType: "mouse", clientX: 100, clientY: 100});
         expect(screen.getByRole("status")).toHaveTextContent("B00001");
+        expect(screen.getByRole("status")).toHaveTextContent(
+            "All parts from this board (2)",
+        );
+        expect(screen.getByRole("status")).toHaveTextContent("Kitchen");
+        expect(screen.getByRole("status")).toHaveTextContent("325 × 193 mm");
         fireEvent.pointerLeave(canvas, {pointerType: "mouse"});
         expect(screen.queryByRole("status")).not.toBeInTheDocument();
 

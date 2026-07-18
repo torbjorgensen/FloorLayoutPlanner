@@ -378,7 +378,9 @@ select {
 .board-inspection {
     position: absolute;
     z-index: 4;
-    width: min(280px, calc(100% - 24px));
+    width: min(360px, calc(100% - 24px));
+    max-height: min(520px, calc(100% - 24px));
+    overflow-y: auto;
     padding: 12px 14px;
     transform: translate(12px, calc(-100% - 12px));
     border: 1px solid rgba(255, 255, 255, 0.16);
@@ -439,6 +441,39 @@ select {
     margin-top: 9px !important;
     color: #ffb4b4 !important;
     font-weight: 700;
+}
+
+.board-inspection-parts {
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.board-inspection-parts > strong {
+    font-size: 0.8rem;
+}
+
+.board-inspection-parts ol {
+    display: grid;
+    gap: 3px;
+    margin: 7px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.board-inspection-parts li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    color: rgba(255, 250, 245, 0.76);
+    font-size: 0.72rem;
+}
+
+.board-inspection-parts li.is-inspected {
+    color: #fff;
+    background: rgba(255, 207, 112, 0.18);
 }
 
 .simulation-feedback {

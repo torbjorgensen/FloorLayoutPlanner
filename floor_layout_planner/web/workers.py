@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 import threading
 import time
 from dataclasses import dataclass
@@ -32,6 +33,8 @@ from floor_layout_planner.web.config import merged_settings
 from floor_layout_planner.web.outputs import write_piece_csv
 from floor_layout_planner.web.payloads import local_floor
 from floor_layout_planner.web.state import ProjectState, RoomState
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -120,6 +123,12 @@ def create_worker_manager(
         config_snapshot: dict[str, Any],
     ) -> None:
         try:
+            logger.info(
+                "Room optimization started room_id=%s generation=%d project=%s",
+                room_id,
+                generation,
+                config_snapshot.get("project_name", "unknown"),
+            )
             room = room_by_id(config_snapshot, room_id)
             settings = merged_settings(config_snapshot, room)
             minimum_length = float(settings["minimum_piece_length_mm"])
@@ -365,7 +374,21 @@ def create_worker_manager(
                     room_state.profile["elapsed_s"] = time.perf_counter() - started_at
 
             notify_state_changed()
+            logger.info(
+                "Room optimization finished room_id=%s generation=%d "
+                "elapsed_s=%.3f pieces=%d",
+                room_id,
+                generation,
+                time.perf_counter() - started_at,
+                len(final_best.pieces),
+            )
         except Exception as exc:
+            logger.exception(
+                "Room optimization failed room_id=%s generation=%d error=%s",
+                room_id,
+                generation,
+                exc,
+            )
             with state.lock:
                 room_state = state.rooms[room_id]
 
@@ -384,6 +407,11 @@ def create_worker_manager(
     ) -> None:
         continuous_state = state.continuous[connection.connection_id]
         try:
+            logger.info(
+                "Transition optimization started connection_id=%s generation=%d",
+                connection.connection_id,
+                generation,
+            )
             room_a = room_by_id(config_snapshot, connection.room_a)
             room_b = room_by_id(config_snapshot, connection.room_b)
             settings_a = merged_settings(config_snapshot, room_a)
@@ -673,7 +701,21 @@ def create_worker_manager(
                     }
                 )
             notify_state_changed()
+            logger.info(
+                "Transition optimization finished connection_id=%s generation=%d "
+                "elapsed_s=%.3f",
+                connection.connection_id,
+                generation,
+                time.perf_counter() - started_at,
+            )
         except Exception as exc:
+            logger.exception(
+                "Transition optimization failed connection_id=%s "
+                "generation=%d error=%s",
+                connection.connection_id,
+                generation,
+                exc,
+            )
             with state.lock:
                 continuous_state.error = str(exc)
                 continuous_state.running = False
@@ -726,6 +768,7 @@ def create_worker_manager(
             return
         room = room_by_id(config, room_id)
         local_floor(config, room)  # validate synchronously
+        logger.info("Scheduling room optimization room_id=%s", room_id)
 
         with state.lock:
             if room_id not in state.rooms:
@@ -761,6 +804,12 @@ def create_worker_manager(
         start_background(optimizer_worker, room_id, generation, copy.deepcopy(config))
 
     def start_all(config: dict[str, Any]) -> None:
+        logger.info(
+            "Scheduling project optimization project=%s rooms=%d connections=%d",
+            config.get("project_name", "unknown"),
+            len(config["rooms"]),
+            len(state.connections),
+        )
         for room in config["rooms"]:
             start_room(room["id"], config)
         for connection in state.connections:
@@ -770,6 +819,7 @@ def create_worker_manager(
     def shutdown() -> None:
         """Cancel coordinators and briefly wait for them to release resources."""
         shutdown_requested.set()
+        logger.info("Stopping optimizer workers active_threads=%d", len(active_threads))
         with state.lock:
             for room in state.rooms.values():
                 room.generation += 1

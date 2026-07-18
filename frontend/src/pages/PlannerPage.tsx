@@ -179,6 +179,17 @@ function PlannerPage({projectId}: PlannerPageProps) {
         () => roomById(state, selectedRoomId),
         [state, selectedRoomId],
     );
+    const inspectedBoardParts = useMemo(() => {
+        if (!state || !inspectedPiece) return [];
+        return inspectableFloorPieces(state)
+            .filter(item => item.boardKey === inspectedPiece.boardKey)
+            .sort((left, right) =>
+                left.roomName.localeCompare(right.roomName)
+                || left.piece.row - right.piece.row
+                || left.piece.segment - right.piece.segment
+                || left.piece.piece - right.piece.piece,
+            );
+    }, [state, inspectedPiece]);
 
     useEffect(() => {
         if (!state) {
@@ -820,6 +831,7 @@ function PlannerPage({projectId}: PlannerPageProps) {
                             ></canvas>
                             {inspectedPiece && (
                                 <BoardInspection
+                                    boardParts={inspectedBoardParts}
                                     inspection={inspectedPiece}
                                     pinned={inspectionPinned}
                                 />

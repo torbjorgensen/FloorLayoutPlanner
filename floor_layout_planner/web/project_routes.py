@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, Callable
 
 from flask import Blueprint, Flask, Response, jsonify, request
@@ -14,6 +15,8 @@ from floor_layout_planner.storage import (
     ProjectService,
 )
 from floor_layout_planner.web.config import new_project_config
+
+logger = logging.getLogger(__name__)
 
 
 def _metadata(project: ProjectRecord) -> dict[str, Any]:
@@ -66,14 +69,17 @@ def register_project_routes(
 
     @api.errorhandler(ProjectNotFoundError)
     def not_found(exc: ProjectNotFoundError):
+        logger.warning("Project request not found path=%s error=%s", request.path, exc)
         return jsonify({"ok": False, "error": str(exc)}), 404
 
     @api.errorhandler(ProjectConflictError)
     def conflict(exc: ProjectConflictError):
+        logger.warning("Project request conflict path=%s error=%s", request.path, exc)
         return jsonify({"ok": False, "error": str(exc)}), 409
 
     @api.errorhandler(ValueError)
     def invalid(exc: ValueError):
+        logger.warning("Invalid project request path=%s error=%s", request.path, exc)
         return jsonify({"ok": False, "error": str(exc)}), 400
 
     @api.get("")
@@ -105,6 +111,7 @@ def register_project_routes(
         if not isinstance(config, dict):
             raise ValueError("'config' must be a JSON object.")
         created = projects.create(config)
+        logger.info("Project created project_id=%s name=%s", created.id, created.name)
         return jsonify({"ok": True, "project": _project_payload(created)}), 201
 
     @api.get("/<project_id>")
@@ -130,6 +137,12 @@ def register_project_routes(
             raise ValueError("Provide either 'config' or 'name' to update a project.")
         if discard_runtime is not None:
             discard_runtime(project_id)
+        logger.info(
+            "Project updated project_id=%s version=%d name=%s",
+            updated.id,
+            updated.version,
+            updated.name,
+        )
         return jsonify({"ok": True, "project": _project_payload(updated)})
 
     @api.post("/<project_id>/duplicate")
@@ -140,6 +153,12 @@ def register_project_routes(
             project_id,
             expected_version=_expected_version(payload),
             name=str(name).strip() if name is not None else None,
+        )
+        logger.info(
+            "Project duplicated source_id=%s project_id=%s name=%s",
+            project_id,
+            duplicate.id,
+            duplicate.name,
         )
         return jsonify({"ok": True, "project": _project_payload(duplicate)}), 201
 
@@ -152,6 +171,12 @@ def register_project_routes(
         )
         if archived and discard_runtime is not None:
             discard_runtime(project_id)
+        logger.info(
+            "Project archive changed project_id=%s archived=%s version=%d",
+            project_id,
+            archived,
+            updated.version,
+        )
         return jsonify({"ok": True, "project": _project_payload(updated)})
 
     @api.post("/<project_id>/archive")
@@ -168,6 +193,7 @@ def register_project_routes(
         projects.delete(project_id, expected_version=_expected_version(payload))
         if discard_runtime is not None:
             discard_runtime(project_id)
+        logger.info("Project deleted project_id=%s", project_id)
         return jsonify({"ok": True})
 
     @api.get("/<project_id>/export")

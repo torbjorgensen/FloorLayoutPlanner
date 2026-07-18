@@ -7,6 +7,7 @@ services:
       PLANNER_CONFIG_PATH: /data/project.json
       PLANNER_DATABASE_URL: sqlite:////data/storage/planner.db
       PLANNER_PROJECT_OUTPUT_ROOT: /data/storage/outputs
+      PLANNER_LOG_LEVEL: "${PLANNER_LOG_LEVEL:-INFO}"
       SOCKETIO_ALLOWED_ORIGINS: "${SOCKETIO_ALLOWED_ORIGINS:-}"
     # Match the host owner so project saves and generated output remain editable.
     user: "${PLANNER_UID:-1000}:${PLANNER_GID:-1000}"

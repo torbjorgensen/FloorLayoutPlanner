@@ -101,6 +101,7 @@ PLANNER_DATA_DIR=/srv/floor-layout-planner/data
 PLANNER_UID=$(id -u)
 PLANNER_GID=$(id -g)
 PLANNER_PORT=8080
+PLANNER_LOG_LEVEL=INFO
 SOCKETIO_ALLOWED_ORIGINS=
 EOF
 
@@ -191,6 +192,10 @@ Common production operations:
 ```bash
 # Follow logs from both services.
 docker compose logs --follow
+
+# Increase backend detail while diagnosing a problem, then recreate it.
+sed -i 's/^PLANNER_LOG_LEVEL=.*/PLANNER_LOG_LEVEL=DEBUG/' .env
+docker compose up --detach --force-recreate backend
 
 # Rebuild and replace containers after updating the checkout.
 docker compose up --build --detach --remove-orphans

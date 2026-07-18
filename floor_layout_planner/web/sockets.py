@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from typing import Any, Callable
@@ -9,6 +10,7 @@ from flask_socketio import SocketIO
 
 STATE_EVENT = "project_state"
 ERROR_EVENT = "project_error"
+logger = logging.getLogger(__name__)
 
 
 class StateUpdateEmitter:
@@ -85,6 +87,11 @@ class StateUpdateEmitter:
         try:
             payload = self.payload_factory()
         except (KeyError, TypeError, ValueError) as exc:
+            logger.exception(
+                "Failed to build project state payload clients=%d error=%s",
+                len(clients),
+                exc,
+            )
             for session_id in clients:
                 self.socketio.emit(ERROR_EVENT, {"error": str(exc)}, to=session_id)
             return
@@ -106,11 +113,22 @@ def register_state_socket_handlers(
         if project_id and project_emitter is not None:
             try:
                 selected = project_emitter(str(project_id))
-            except LookupError:
+            except LookupError as exc:
+                logger.warning(
+                    "Rejected socket project_id=%s session_id=%s error=%s",
+                    project_id,
+                    request.sid,
+                    exc,
+                )
                 return False
         with client_lock:
             client_emitters[request.sid] = selected
         selected.connect(request.sid)
+        logger.info(
+            "Socket connected project_id=%s session_id=%s",
+            project_id or "legacy",
+            request.sid,
+        )
         return None
 
     def on_disconnect(_reason=None) -> None:
@@ -118,6 +136,7 @@ def register_state_socket_handlers(
             selected = client_emitters.pop(request.sid, None)
         if selected is not None:
             selected.disconnect(request.sid)
+        logger.info("Socket disconnected session_id=%s", request.sid)
 
     socketio.on_event("connect", on_connect)
     socketio.on_event("disconnect", on_disconnect)
