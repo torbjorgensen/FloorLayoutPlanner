@@ -8,6 +8,7 @@ from flask import request
 from flask_socketio import SocketIO
 
 STATE_EVENT = "project_state"
+ERROR_EVENT = "project_error"
 
 
 class StateUpdateEmitter:
@@ -30,7 +31,7 @@ class StateUpdateEmitter:
     def connect(self, session_id: str) -> None:
         with self.lock:
             self.clients.add(session_id)
-        self.socketio.emit(STATE_EVENT, self.payload_factory(), to=session_id)
+        self._emit_to((session_id,))
 
     def disconnect(self, session_id: str) -> None:
         with self.lock:
@@ -76,9 +77,17 @@ class StateUpdateEmitter:
         self._emit()
 
     def _emit(self) -> None:
-        payload = self.payload_factory()
         with self.lock:
             clients = tuple(self.clients)
+        self._emit_to(clients)
+
+    def _emit_to(self, clients: tuple[str, ...]) -> None:
+        try:
+            payload = self.payload_factory()
+        except (KeyError, TypeError, ValueError) as exc:
+            for session_id in clients:
+                self.socketio.emit(ERROR_EVENT, {"error": str(exc)}, to=session_id)
+            return
         for session_id in clients:
             self.socketio.emit(STATE_EVENT, payload, to=session_id)
 
