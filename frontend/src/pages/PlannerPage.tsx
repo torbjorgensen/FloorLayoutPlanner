@@ -166,6 +166,7 @@ function PlannerPage({projectId}: PlannerPageProps) {
     const [simulationRun, setSimulationRun] = useState<SimulationRun | null>(null);
     const [inspectedPiece, setInspectedPiece] = useState<PieceHit | null>(null);
     const [inspectionPinned, setInspectionPinned] = useState(false);
+    const [showDimensions, setShowDimensions] = useState(false);
 
     useEffect(() => {
         document.documentElement.classList.add("planner-workspace-active");
@@ -215,6 +216,7 @@ function PlannerPage({projectId}: PlannerPageProps) {
                 }
                 : null,
             inspectedBoardKey: inspectedPiece?.boardKey,
+            showDimensions,
         });
 
         const onResize = () => {
@@ -233,12 +235,13 @@ function PlannerPage({projectId}: PlannerPageProps) {
                     }
                     : null,
                 inspectedBoardKey: inspectedPiece?.boardKey,
+                showDimensions,
             });
         };
 
         window.addEventListener("resize", onResize);
         return () => window.removeEventListener("resize", onResize);
-    }, [state, selectedRoomId, simulationRun, inspectedPiece?.boardKey]);
+    }, [state, selectedRoomId, simulationRun, inspectedPiece?.boardKey, showDimensions]);
 
     useEffect(() => {
         setInspectedPiece(null);
@@ -737,6 +740,16 @@ function PlannerPage({projectId}: PlannerPageProps) {
                                         type="button"
                                     >
                                         Simulate
+                                    </ActionButton>
+                                    <ActionButton
+                                        aria-pressed={showDimensions}
+                                        className={showDimensions
+                                            ? "action-button action-button-primary"
+                                            : "action-button"}
+                                        onClick={() => setShowDimensions(value => !value)}
+                                        type="button"
+                                    >
+                                        {showDimensions ? "Hide dimensions" : "Show dimensions"}
                                     </ActionButton>
                                     <ActionButton
                                         id="stopSimulationButton"

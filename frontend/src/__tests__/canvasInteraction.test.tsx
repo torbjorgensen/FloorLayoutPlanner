@@ -3,6 +3,7 @@ import {describe, expect, it} from "vitest";
 
 import {BoardInspection} from "../components/BoardInspection";
 import {
+    formatDimension,
     hitTestFloorPiece,
     inspectableFloorPieces,
 } from "../lib/canvasRenderer";
@@ -72,6 +73,11 @@ const state: ProjectState = {
 };
 
 describe("canvas board inspection", () => {
+    it("formats wall dimensions without unnecessary precision", () => {
+        expect(formatDimension(606)).toBe("606 mm");
+        expect(formatDimension(3416)).toBe("3.416 m");
+        expect(formatDimension(4000)).toBe("4 m");
+    });
     it("finds the rendered piece under a canvas point", () => {
         const hit = hitTestFloorPiece(
             state,
