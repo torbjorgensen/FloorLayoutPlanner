@@ -169,3 +169,30 @@ def test_archiving_discards_allocated_runtime(runtime: PlannerApplication) -> No
         f"/api/projects/{project.id}/runtime/restart-all"
     )
     assert command.status_code == 404
+
+
+def test_project_editor_save_reloads_allocated_runtime(
+    runtime: PlannerApplication,
+) -> None:
+    project = runtime.projects.list()[0]
+    socket_client = runtime.socketio.test_client(
+        runtime.app, auth={"project_id": project.id}
+    )
+    socket_client.get_received()
+    updated_config = copy.deepcopy(project.config)
+    updated_config["rooms"][0]["rectangles"][0]["width"] += 25
+
+    response = runtime.app.test_client().patch(
+        f"/api/projects/{project.id}",
+        json={"config": updated_config, "expected_version": project.version},
+    )
+
+    assert response.status_code == 200
+    assert project.id not in runtime.runtimes.active_project_ids()
+    assert not socket_client.is_connected()
+    reloaded = runtime.runtimes.get(project.id)
+    assert reloaded.project_version == project.version + 1
+    assert (
+        reloaded.state.active_config["rooms"][0]["rectangles"][0]["width"]
+        == updated_config["rooms"][0]["rectangles"][0]["width"]
+    )
