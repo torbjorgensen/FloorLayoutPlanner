@@ -128,6 +128,8 @@ def register_project_routes(
             )
         else:
             raise ValueError("Provide either 'config' or 'name' to update a project.")
+        if discard_runtime is not None:
+            discard_runtime(project_id)
         return jsonify({"ok": True, "project": _project_payload(updated)})
 
     @api.post("/<project_id>/duplicate")
