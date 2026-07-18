@@ -24,6 +24,7 @@ interface RendererOptions {
     selectedRoomId: string | null;
     simulation: SimulationState | null;
     inspectedBoardKey?: string | null;
+    showDimensions?: boolean;
 }
 
 export interface InspectablePiece {
@@ -900,12 +901,103 @@ function drawRoomOutlines(
     }
 }
 
+export function formatDimension(lengthMm: number): string {
+    if (lengthMm < 1000) {
+        return `${Math.round(lengthMm)} mm`;
+    }
+    return `${(lengthMm / 1000).toFixed(3).replace(/\.?0+$/, "")} m`;
+}
+
+function drawRoomDimensions(
+    context: CanvasRenderingContext2D,
+    state: ProjectState,
+    selectedRoomId: string | null,
+    x: (value: number) => number,
+    y: (value: number) => number,
+) {
+    const room = state.rooms.find(item => item.id === selectedRoomId);
+    if (!room || room.outline.length < 2) {
+        return;
+    }
+    const points = room.outline.slice(0, -1);
+    const center = {
+        x: points.reduce((sum, point) => sum + x(point[0]), 0) / points.length,
+        y: points.reduce((sum, point) => sum + y(point[1]), 0) / points.length,
+    };
+
+    context.save();
+    context.strokeStyle = "#184f90";
+    context.fillStyle = "#123b6d";
+    context.lineWidth = 1;
+    context.font = "600 11px sans-serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+
+    points.forEach((point, index) => {
+        const next = points[(index + 1) % points.length];
+        const start = {x: x(point[0]), y: y(point[1])};
+        const end = {x: x(next[0]), y: y(next[1])};
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const pixels = Math.hypot(dx, dy);
+        const lengthMm = Math.hypot(next[0] - point[0], next[1] - point[1]);
+        if (pixels < 2 || lengthMm < 1) return;
+
+        let normalX = -dy / pixels;
+        let normalY = dx / pixels;
+        const midpoint = {x: (start.x + end.x) / 2, y: (start.y + end.y) / 2};
+        if ((midpoint.x - center.x) * normalX + (midpoint.y - center.y) * normalY < 0) {
+            normalX *= -1;
+            normalY *= -1;
+        }
+        const offset = 18;
+        const dimensionStart = {x: start.x + normalX * offset, y: start.y + normalY * offset};
+        const dimensionEnd = {x: end.x + normalX * offset, y: end.y + normalY * offset};
+
+        context.beginPath();
+        context.moveTo(start.x, start.y);
+        context.lineTo(start.x + normalX * (offset + 4), start.y + normalY * (offset + 4));
+        context.moveTo(end.x, end.y);
+        context.lineTo(end.x + normalX * (offset + 4), end.y + normalY * (offset + 4));
+        context.moveTo(dimensionStart.x, dimensionStart.y);
+        context.lineTo(dimensionEnd.x, dimensionEnd.y);
+        context.stroke();
+
+        const tickX = normalX * 4;
+        const tickY = normalY * 4;
+        context.beginPath();
+        context.moveTo(dimensionStart.x - tickX, dimensionStart.y - tickY);
+        context.lineTo(dimensionStart.x + tickX, dimensionStart.y + tickY);
+        context.moveTo(dimensionEnd.x - tickX, dimensionEnd.y - tickY);
+        context.lineTo(dimensionEnd.x + tickX, dimensionEnd.y + tickY);
+        context.stroke();
+
+        context.save();
+        context.translate(
+            midpoint.x + normalX * (offset + 10),
+            midpoint.y + normalY * (offset + 10),
+        );
+        let angle = Math.atan2(dy, dx);
+        if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
+        context.rotate(angle);
+        const label = formatDimension(lengthMm);
+        const labelWidth = context.measureText(label).width + 8;
+        context.fillStyle = "rgba(255, 255, 255, .9)";
+        context.fillRect(-labelWidth / 2, -8, labelWidth, 16);
+        context.fillStyle = "#123b6d";
+        context.fillText(label, 0, 0);
+        context.restore();
+    });
+    context.restore();
+}
+
 export function renderFloorPlan({
     canvas,
     state,
     selectedRoomId,
     simulation,
     inspectedBoardKey = null,
+    showDimensions = false,
 }: RendererOptions) {
     const context = canvas.getContext("2d");
     if (!context) {
@@ -939,4 +1031,7 @@ export function renderFloorPlan({
     );
     drawTransitions(context, state, x, y, scale);
     drawRoomOutlines(context, state, selectedRoomId, x, y);
+    if (showDimensions) {
+        drawRoomDimensions(context, state, selectedRoomId, x, y);
+    }
 }
