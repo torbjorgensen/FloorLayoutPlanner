@@ -159,8 +159,25 @@ def normalize_and_validate_config(config: dict[str, Any]) -> dict[str, Any]:
                         f"Room '{room['name']}' rectangle {index} {field} "
                         "must be greater than 0."
                     )
+        room_settings = room.get("settings", {})
+        if not isinstance(room_settings, dict):
+            raise ValueError(f"Room '{room['name']}' settings must be an object.")
+        project_settings = config.get("settings", {})
+        if not isinstance(project_settings, dict):
+            raise ValueError("'settings' must be an object.")
+        expansion_gap = _finite_number(
+            room_settings.get(
+                "expansion_gap_mm",
+                project_settings.get(
+                    "expansion_gap_mm", DEFAULT_SETTINGS["expansion_gap_mm"]
+                ),
+            ),
+            f"{room['name']} expansion_gap_mm",
+        )
+        if expansion_gap < 0:
+            raise ValueError(f"Room '{room['name']}' expansion gap cannot be negative.")
         try:
-            build_floor_polygon(room["rectangles"], expansion_gap=0)
+            build_floor_polygon(room["rectangles"], expansion_gap=expansion_gap)
         except ValueError as exc:
             raise ValueError(
                 f"Room '{room['name']}' geometry is invalid: {exc}"
