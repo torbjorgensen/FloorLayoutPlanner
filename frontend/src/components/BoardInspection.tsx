@@ -13,6 +13,24 @@ export function BoardInspection({
     pinned = false,
 }: BoardInspectionProps) {
     const {piece} = inspection;
+    const installedParts = Array.from(
+        boardParts.reduce((groups, part) => {
+            const key = `${part.roomId}:${part.piece.row}`;
+            const current = groups.get(key) || [];
+            current.push(part);
+            groups.set(key, current);
+            return groups;
+        }, new Map<string, InspectablePiece[]>()),
+    ).map(([key, fragments]) => {
+        const minX = Math.min(...fragments.map(part => part.piece.x1));
+        const maxX = Math.max(...fragments.map(part => part.piece.x2));
+        const minY = Math.min(...fragments.map(part => part.piece.y1));
+        const maxY = Math.max(...fragments.map(part => part.piece.y2));
+        return {key, fragments, length: maxX - minX, width: maxY - minY};
+    });
+    const selectedPart = installedParts.find(part =>
+        part.fragments.some(fragment => fragment.key === inspection.key),
+    );
     const boardName = piece.physical_board_id
         || `Board ${piece.source_board_index ?? "–"}`;
 
@@ -33,7 +51,7 @@ export function BoardInspection({
                 </div>
                 <div>
                     <dt>Piece</dt>
-                    <dd>{`Row ${piece.row}, segment ${piece.segment}, #${piece.piece}`}</dd>
+                    <dd>{`Row ${piece.row}${selectedPart && selectedPart.fragments.length > 1 ? `, shaped across ${selectedPart.fragments.length} geometry sections` : `, segment ${piece.segment}, #${piece.piece}`}`}</dd>
                 </div>
                 <div>
                     <dt>Source</dt>
@@ -42,12 +60,14 @@ export function BoardInspection({
                 <div>
                     <dt>Size</dt>
                     <dd>
-                        {`${formatNumber(piece.length, 0)} × ${formatNumber(piece.width, 0)} mm`}
+                        {selectedPart
+                            ? `${formatNumber(selectedPart.length, 0)} × ${formatNumber(selectedPart.width, 0)} mm envelope`
+                            : `${formatNumber(piece.length, 0)} × ${formatNumber(piece.width, 0)} mm`}
                     </dd>
                 </div>
                 <div>
                     <dt>Type</dt>
-                    <dd>{piece.is_full_length ? "Full-length board" : "Cut piece"}</dd>
+                    <dd>{piece.is_full_length ? "Cut from a full-length board" : "Cut piece"}</dd>
                 </div>
             </dl>
             {piece.length < inspection.minimumPieceLength && (
@@ -56,17 +76,17 @@ export function BoardInspection({
                 </span>
             )}
             <section className="board-inspection-parts">
-                <strong>{`All parts from this board (${boardParts.length})`}</strong>
+                <strong>{`Installed pieces from this board (${installedParts.length})`}</strong>
                 <ol>
-                    {boardParts.map(part => (
+                    {installedParts.map(part => (
                         <li
-                            className={part.key === inspection.key ? "is-inspected" : ""}
+                            className={part.fragments.some(fragment => fragment.key === inspection.key) ? "is-inspected" : ""}
                             key={part.key}
                         >
-                            <span>{part.roomName}</span>
-                            <span>{boardOrderLabel(part.piece)}</span>
+                            <span>{part.fragments[0].roomName}</span>
+                            <span>{`Row ${part.fragments[0].piece.row}`}</span>
                             <span>
-                                {`${formatNumber(part.piece.length, 0)} × ${formatNumber(part.piece.width, 0)} mm`}
+                                {`${formatNumber(part.length, 0)} × ${formatNumber(part.width, 0)} mm${part.fragments.length > 1 ? ` (${part.fragments.length} geometry sections)` : ""}`}
                             </span>
                         </li>
                     ))}

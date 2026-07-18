@@ -98,18 +98,38 @@ function inspection(key: string, boardKey: string): PieceHit {
 
 const first = inspection("piece-1", "B00001");
 const second = inspection("piece-2", "B00002");
+const firstGeometrySection = {
+    ...inspection("piece-4", "B00001"),
+    piece: {
+        ...inspection("piece-4", "B00001").piece,
+        segment: 2,
+        y1: 293,
+        y2: 350,
+        width: 57,
+    },
+};
 const firstOffcut = {
     ...inspection("piece-3", "B00001"),
+    roomId: "room_2",
     roomName: "Kitchen",
     piece: {
         ...inspection("piece-3", "B00001").piece,
+        row: 2,
+        x2: 425,
+        y1: 293,
+        y2: 486,
         length: 325,
     },
 };
 
 function renderPlanner(projectState = state) {
     inspectionMocks.state = projectState;
-    inspectionMocks.pieces.mockReturnValue([first, second, firstOffcut]);
+    inspectionMocks.pieces.mockReturnValue([
+        first,
+        second,
+        firstGeometrySection,
+        firstOffcut,
+    ]);
     inspectionMocks.hit.mockImplementation((_, __, point: {x: number}) =>
         point.x < 300 ? first : point.x < 600 ? second : null,
     );
@@ -150,10 +170,11 @@ describe("planner board inspection interactions", () => {
         fireEvent.pointerMove(canvas, {pointerType: "mouse", clientX: 100, clientY: 100});
         expect(screen.getByRole("status")).toHaveTextContent("B00001");
         expect(screen.getByRole("status")).toHaveTextContent(
-            "All parts from this board (2)",
+            "Installed pieces from this board (2)",
         );
         expect(screen.getByRole("status")).toHaveTextContent("Kitchen");
         expect(screen.getByRole("status")).toHaveTextContent("325 × 193 mm");
+        expect(screen.getByRole("status")).toHaveTextContent("2 geometry sections");
         fireEvent.pointerLeave(canvas, {pointerType: "mouse"});
         expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
