@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from floor_layout_planner.geometry import build_floor_polygon
+
 DEFAULT_SETTINGS = {
     "orientation": "horizontal",
     "start_corner": "upper_left",
@@ -157,6 +159,12 @@ def normalize_and_validate_config(config: dict[str, Any]) -> dict[str, Any]:
                         f"Room '{room['name']}' rectangle {index} {field} "
                         "must be greater than 0."
                     )
+        try:
+            build_floor_polygon(room["rectangles"], expansion_gap=0)
+        except ValueError as exc:
+            raise ValueError(
+                f"Room '{room['name']}' geometry is invalid: {exc}"
+            ) from exc
 
     return config
 

@@ -56,6 +56,13 @@ describe("useProjectState", () => {
         expect(result.current.connectionStatus).toBe("connected");
 
         act(() =>
+            socketMock.handlers.get("project_error")?.(
+                {error: "Room geometry is disconnected"} as never,
+            ),
+        );
+        expect(result.current.connectionError).toBe("Room geometry is disconnected");
+
+        act(() =>
             socketMock.handlers.get("project_state")?.(projectState as never),
         );
         expect(result.current.state?.project_name).toBe("Socket project");

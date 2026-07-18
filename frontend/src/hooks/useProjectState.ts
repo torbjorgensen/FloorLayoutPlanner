@@ -44,6 +44,9 @@ export function useProjectState(projectId?: string): ProjectStateSocket {
         socket.on("project_state", (payload: ProjectState) => {
             setState(payload);
         });
+        socket.on("project_error", (payload: {error?: string}) => {
+            setConnectionError(payload.error || "The project configuration is invalid.");
+        });
         socket.on("disconnect", reason => {
             setConnectionStatus(
                 reason === "io client disconnect"
