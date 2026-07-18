@@ -190,6 +190,12 @@ function PlannerPage({projectId}: PlannerPageProps) {
                 || left.piece.piece - right.piece.piece,
             );
     }, [state, inspectedPiece]);
+    const inspectedRoomPieces = useMemo(() => {
+        if (!state || !inspectedPiece) return [];
+        return inspectableFloorPieces(state)
+            .filter(item => item.roomId === inspectedPiece.roomId && item.boardScope === inspectedPiece.boardScope)
+            .map(item => item.piece);
+    }, [state, inspectedPiece]);
 
     useEffect(() => {
         if (!state) {
@@ -840,7 +846,9 @@ function PlannerPage({projectId}: PlannerPageProps) {
                                 <BoardInspection
                                     boardParts={inspectedBoardParts}
                                     inspection={inspectedPiece}
+                                    layoutPieces={inspectedRoomPieces}
                                     pinned={inspectionPinned}
+                                    room={state?.rooms.find(room => room.id === inspectedPiece.roomId)}
                                 />
                             )}
                         </div>

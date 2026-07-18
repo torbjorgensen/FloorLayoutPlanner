@@ -1,16 +1,21 @@
 import type {InspectablePiece, PieceHit} from "../lib/canvasRenderer";
-import {boardOrderLabel, formatNumber} from "../lib/planning";
+import {boardOrderLabel, formatNumber, starterCutTolerance} from "../lib/planning";
+import type {Piece, RoomStatePayload} from "../types";
 
 interface BoardInspectionProps {
     inspection: PieceHit;
     boardParts?: InspectablePiece[];
+    layoutPieces?: Piece[];
     pinned?: boolean;
+    room?: RoomStatePayload | null;
 }
 
 export function BoardInspection({
     inspection,
     boardParts = [inspection],
+    layoutPieces = [],
     pinned = false,
+    room = null,
 }: BoardInspectionProps) {
     const {piece} = inspection;
     const installedParts = Array.from(
@@ -31,6 +36,9 @@ export function BoardInspection({
     const selectedPart = installedParts.find(part =>
         part.fragments.some(fragment => fragment.key === inspection.key),
     );
+    const tolerance = room
+        ? starterCutTolerance(layoutPieces, room, piece)
+        : null;
     const boardName = piece.physical_board_id
         || `Board ${piece.source_board_index ?? "–"}`;
 
@@ -75,6 +83,11 @@ export function BoardInspection({
                     Shorter than the configured minimum
                 </span>
             )}
+            {tolerance && <section className="board-inspection-tolerance">
+                <strong>Safe starter-cut range</strong>
+                <span>{`${formatNumber(tolerance.planned - tolerance.shorter)}–${formatNumber(tolerance.planned + tolerance.longer)} mm`}</span>
+                <small>{`Planned ${formatNumber(tolerance.planned)} mm · −${formatNumber(tolerance.shorter)} / +${formatNumber(tolerance.longer)} mm${tolerance.capped ? " or more" : ""}`}</small>
+            </section>}
             <section className="board-inspection-parts">
                 <strong>{`Installed pieces from this board (${installedParts.length})`}</strong>
                 <ol>

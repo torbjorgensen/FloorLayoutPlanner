@@ -1,6 +1,10 @@
 import {describe, expect, it} from "vitest";
 
-import {buildSimulationSteps, titleCaseWords} from "../lib/planning";
+import {
+    buildSimulationSteps,
+    starterCutTolerance,
+    titleCaseWords,
+} from "../lib/planning";
 import type {ProjectState} from "../types";
 
 const state: ProjectState = {
@@ -96,5 +100,27 @@ describe("planning helpers", () => {
         expect(steps).toHaveLength(2);
         expect(steps[0]?.anchor.physical_board_id).toBe("B00001");
         expect(steps[1]?.anchor.physical_board_id).toBe("B00002");
+    });
+
+    it("calculates the safe starter-cut range from piece and joint limits", () => {
+        const room = {
+            ...state.rooms[0],
+            settings: {...state.rooms[0].settings, start_corner: "upper_left" as const},
+        };
+        const template = state.rooms[0].current!.pieces[0];
+        const pieces = [
+            {...template, row: 1, x1: 0, x2: 400, length: 400, physical_board_id: "B1"},
+            {...template, row: 1, x1: 400, x2: 1000, length: 600, physical_board_id: "B2"},
+            {...template, row: 2, x1: 0, x2: 750, length: 750, physical_board_id: "B3"},
+            {...template, row: 2, x1: 750, x2: 1400, length: 650, physical_board_id: "B4"},
+        ];
+
+        expect(starterCutTolerance(pieces, room, pieces[0])).toEqual({
+            planned: 400,
+            shorter: 100,
+            longer: 50,
+            capped: true,
+        });
+        expect(starterCutTolerance(pieces, room, pieces[1])).toBeNull();
     });
 });
