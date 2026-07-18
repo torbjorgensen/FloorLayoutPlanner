@@ -600,21 +600,55 @@ def _pieces_from_placements(
             )
             piece_numbers[fragment.segment] = number
 
-            pieces.append(
-                Piece(
-                    row=fragment.row,
-                    segment=fragment.segment,
-                    piece=number,
-                    x1=start,
-                    x2=end,
-                    y1=fragment.min_y,
-                    y2=fragment.max_y,
-                    length=end - start,
-                    width=fragment.width,
-                    source_board_index=(placement.source_board_index),
-                    physical_board_id=(placement.physical_board_id),
-                    is_full_length=(placement.is_full_length),
-                )
+            piece = Piece(
+                row=fragment.row,
+                segment=fragment.segment,
+                piece=number,
+                x1=start,
+                x2=end,
+                y1=fragment.min_y,
+                y2=fragment.max_y,
+                length=end - start,
+                width=fragment.width,
+                source_board_index=(placement.source_board_index),
+                physical_board_id=(placement.physical_board_id),
+                is_full_length=(placement.is_full_length),
+            )
+
+            # A wall step inside one nominal board row divides the floor polygon
+            # into transverse bands. When this placement has exactly the same
+            # longitudinal extent on both sides of that geometry breakpoint,
+            # it is still one rectangular board section, not two physical parts.
+            previous_index = next(
+                (
+                    index
+                    for index in range(len(pieces) - 1, -1, -1)
+                    if pieces[index].row == piece.row
+                    and pieces[index].physical_board_id == piece.physical_board_id
+                    and abs(pieces[index].x1 - piece.x1) <= _EPSILON
+                    and abs(pieces[index].x2 - piece.x2) <= _EPSILON
+                    and abs(pieces[index].y2 - piece.y1) <= _EPSILON
+                ),
+                None,
+            )
+            if previous_index is None:
+                pieces.append(piece)
+                continue
+
+            previous = pieces[previous_index]
+            pieces[previous_index] = Piece(
+                row=previous.row,
+                segment=previous.segment,
+                piece=previous.piece,
+                x1=previous.x1,
+                x2=previous.x2,
+                y1=previous.y1,
+                y2=piece.y2,
+                length=previous.length,
+                width=piece.y2 - previous.y1,
+                source_board_index=previous.source_board_index,
+                physical_board_id=previous.physical_board_id,
+                is_full_length=previous.is_full_length,
             )
 
     return pieces

@@ -204,6 +204,41 @@ def test_hallway_geometry_is_completely_covered(
     )
 
 
+def test_wall_step_does_not_split_unchanged_board_section() -> None:
+    floor = build_floor_polygon(
+        [
+            {"x": 0, "y": 0, "width": 1000, "height": 100},
+            {"x": 0, "y": 100, "width": 2000, "height": 140},
+        ],
+        expansion_gap=0,
+    )
+
+    pieces = create_plan(
+        floor=floor,
+        board_length=2050,
+        board_width=240,
+        orientation="horizontal",
+        stagger_step=700,
+        minimum_piece_length=300,
+        base_offset=1000,
+        row_width_offset=0,
+    )
+
+    unchanged = [
+        piece
+        for piece in pieces
+        if piece.row == 1
+        and piece.x1 == pytest.approx(0)
+        and piece.x2 == pytest.approx(1000)
+    ]
+    assert len(unchanged) == 1
+    assert unchanged[0].y1 == pytest.approx(0)
+    assert unchanged[0].y2 == pytest.approx(240)
+    assert pieces_union(pieces).symmetric_difference(floor).area == pytest.approx(
+        0, abs=1e-4
+    )
+
+
 def test_invalid_orientation_is_rejected(l_floor) -> None:
     with pytest.raises(ValueError, match="orientation"):
         create_plan(
