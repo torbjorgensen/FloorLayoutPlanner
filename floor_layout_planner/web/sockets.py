@@ -86,7 +86,7 @@ class StateUpdateEmitter:
     def _emit_to(self, clients: tuple[str, ...]) -> None:
         try:
             payload = self.payload_factory()
-        except (KeyError, TypeError, ValueError) as exc:
+        except Exception as exc:
             logger.exception(
                 "Failed to build project state payload clients=%d error=%s",
                 len(clients),
@@ -123,7 +123,19 @@ def register_state_socket_handlers(
                 return False
         with client_lock:
             client_emitters[request.sid] = selected
-        selected.connect(request.sid)
+        try:
+            selected.connect(request.sid)
+        except Exception as exc:
+            with client_lock:
+                client_emitters.pop(request.sid, None)
+            logger.exception(
+                "Rejected socket during initial state generation "
+                "project_id=%s session_id=%s error=%s",
+                project_id or "legacy",
+                request.sid,
+                exc,
+            )
+            return False
         logger.info(
             "Socket connected project_id=%s session_id=%s",
             project_id or "legacy",

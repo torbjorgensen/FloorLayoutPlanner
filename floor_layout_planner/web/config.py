@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from floor_layout_planner.connections import parse_connections
 from floor_layout_planner.geometry import build_floor_polygon
 
 DEFAULT_SETTINGS = {
@@ -183,6 +184,7 @@ def normalize_and_validate_config(config: dict[str, Any]) -> dict[str, Any]:
                 f"Room '{room['name']}' geometry is invalid: {exc}"
             ) from exc
 
+    parse_connections(config)
     return config
 
 
