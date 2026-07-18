@@ -32,6 +32,17 @@ def candidate_meets_minimum_length(
     )
 
 
+def candidate_meets_installation_minimums(
+    candidate: Candidate,
+    minimum_length: float,
+) -> bool:
+    """Return whether both piece length and absolute row-width limits hold."""
+    return (
+        candidate_meets_minimum_length(candidate, minimum_length)
+        and candidate.very_narrow_row_count == 0
+    )
+
+
 def cut_plan_meets_minimum_length(cut_plan: CutPlan) -> bool:
     return cut_plan.short_fragments == 0
 
@@ -57,12 +68,12 @@ def select_best_valid_candidate(
     valid = [
         candidate
         for candidate in candidates
-        if candidate_meets_minimum_length(candidate, minimum_length)
+        if candidate_meets_installation_minimums(candidate, minimum_length)
     ]
     if not valid:
         raise InfeasibleLayoutError(
-            "No valid layout satisfies the minimum piece length "
-            f"of {minimum_length:g} mm. Adjust the room geometry, laying "
-            "direction, start corner, or minimum piece length."
+            "No valid layout satisfies the minimum piece length and "
+            "absolute minimum row width. Try a finer row-width search step, the "
+            "other laying direction, or adjust the room geometry."
         )
     return min(valid, key=lambda candidate: candidate.score)

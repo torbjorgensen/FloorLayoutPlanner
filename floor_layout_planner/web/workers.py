@@ -24,6 +24,7 @@ from floor_layout_planner.optimizer import (
 from floor_layout_planner.renderer import plot_plan
 from floor_layout_planner.validation import (
     InfeasibleLayoutError,
+    candidate_meets_installation_minimums,
     candidate_meets_minimum_length,
     cut_plan_meets_minimum_length,
     select_best_valid_candidate,
@@ -95,7 +96,7 @@ def create_worker_manager(
         room = room_by_id(config_snapshot, room_id)
         settings = merged_settings(config_snapshot, room)
         minimum_length = float(settings["minimum_piece_length_mm"])
-        if not candidate_meets_minimum_length(best, minimum_length):
+        if not candidate_meets_installation_minimums(best, minimum_length):
             raise InfeasibleLayoutError(
                 f"Refusing to write invalid output for {room_id}: one or more "
                 f"pieces are shorter than {minimum_length:g} mm."
@@ -246,7 +247,9 @@ def create_worker_manager(
                     if generation != room_state.generation:
                         return
 
-                    is_valid = candidate_meets_minimum_length(candidate, minimum_length)
+                    is_valid = candidate_meets_installation_minimums(
+                        candidate, minimum_length
+                    )
                     is_new_best = is_valid and (
                         room_state.best is None
                         or candidate.score < room_state.best.score
@@ -326,7 +329,9 @@ def create_worker_manager(
                     if generation != room_state.generation:
                         return
 
-                    is_valid = candidate_meets_minimum_length(candidate, minimum_length)
+                    is_valid = candidate_meets_installation_minimums(
+                        candidate, minimum_length
+                    )
                     is_new_best = is_valid and (
                         room_state.best is None
                         or candidate.score < room_state.best.score

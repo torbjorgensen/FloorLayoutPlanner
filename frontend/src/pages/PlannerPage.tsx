@@ -634,6 +634,13 @@ function PlannerPage({projectId}: PlannerPageProps) {
         ? continuousConnectionForRoom(state, selectedRoom.id)
         : null;
     const candidate = candidateForRoom(state, selectedRoom);
+    const narrowRowAdvice = candidate && selectedRoom
+        && candidate.narrowest_row_width !== undefined
+        && candidate.narrowest_row_width < selectedRoom.settings.preferred_minimum_row_width_mm
+        ? candidate.narrowest_row_width < selectedRoom.settings.minimum_row_width_mm
+            ? `The narrowest row is below the ${formatNumber(selectedRoom.settings.minimum_row_width_mm)} mm absolute minimum. Try the other laying direction or adjust the room geometry before installation.`
+            : `The narrowest row is below the preferred ${formatNumber(selectedRoom.settings.preferred_minimum_row_width_mm)} mm. Try a row-width search step of 5 mm and restart the room; changing laying direction can also produce wider edge rows.`
+        : null;
     const progressValue = connection?.continuous?.running
         ? Math.max(
             0,
@@ -971,6 +978,7 @@ function PlannerPage({projectId}: PlannerPageProps) {
                                     ],
                                 ]} />
                                 : "–"}
+                            {narrowRowAdvice && <Alert className="mt-3 mb-0" variant={candidate && candidate.very_narrow_row_count ? "danger" : "warning"}>{narrowRowAdvice}</Alert>}
                         </div>
                     </section>
 
