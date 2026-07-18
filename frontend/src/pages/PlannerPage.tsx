@@ -613,7 +613,9 @@ function PlannerPage({projectId}: PlannerPageProps) {
 
     const status = selectedRoom
         ? statusForRoom(state, selectedRoom)
-        : {text: "Connecting …", kind: "idle"};
+        : connectionError
+            ? {text: connectionError, kind: "error"}
+            : {text: "Connecting …", kind: "idle"};
     const connection = selectedRoom
         ? continuousConnectionForRoom(state, selectedRoom.id)
         : null;

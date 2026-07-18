@@ -248,6 +248,24 @@ def test_disconnected_room_geometry_cannot_replace_saved_project(client) -> None
     assert unchanged["version"] == initial["version"]
 
 
+def test_geometry_split_by_expansion_gap_cannot_replace_project(client) -> None:
+    initial = seeded_project(client)
+    stored = client.get(f"/api/projects/{initial['id']}").get_json()["project"]
+    invalid = copy.deepcopy(stored["config"])
+    invalid["rooms"][0]["rectangles"] = [
+        {"x": 0, "y": 0, "width": 1000, "height": 1000},
+        {"x": 995, "y": 1000, "width": 1000, "height": 1000},
+    ]
+
+    response = client.patch(
+        f"/api/projects/{initial['id']}",
+        json={"config": invalid, "expected_version": initial["version"]},
+    )
+
+    assert response.status_code == 400
+    assert "expansion gap split the floor" in response.get_json()["error"]
+
+
 @pytest.mark.parametrize("expected_version", [None, 0, True, "invalid"])
 def test_mutations_require_a_positive_integer_version(
     client, expected_version: object

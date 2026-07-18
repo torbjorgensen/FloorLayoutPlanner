@@ -16,12 +16,12 @@ export function PlannerHeader({
     onRestartAll,
     onBackToProjects,
 }: PlannerHeaderProps) {
-    const connectionLabel = {
+    const connectionLabel = connectionError ? "Project error" : ({
         connecting: "Connecting",
         connected: "Live updates connected",
         reconnecting: "Reconnecting",
         disconnected: "Disconnected",
-    }[connectionStatus];
+    }[connectionStatus]);
     return (
         <header className="topbar">
             <div className="brand-block">
