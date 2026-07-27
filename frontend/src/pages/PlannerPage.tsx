@@ -290,6 +290,13 @@ function PlannerPage({projectId}: PlannerPageProps) {
             return;
         }
         const dismissOutsideCanvas = (event: PointerEvent) => {
+            const inspection = document.getElementById("boardInspection");
+            if (
+                event.target instanceof Node
+                && inspection?.contains(event.target)
+            ) {
+                return;
+            }
             if (event.target !== canvasRef.current) {
                 setInspectedPiece(null);
                 setInspectionPinned(false);
