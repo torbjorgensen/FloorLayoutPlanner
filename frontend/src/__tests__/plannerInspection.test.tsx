@@ -195,6 +195,15 @@ describe("planner board inspection interactions", () => {
         expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
         fireEvent.pointerDown(canvas, {pointerType: "mouse", clientX: 100, clientY: 100});
+        const starterInput = screen.getByRole("spinbutton", {name: "Starter length"});
+        const rowWidthInput = screen.getByRole("spinbutton", {name: "First-row width"});
+        fireEvent.pointerDown(starterInput, {pointerType: "mouse"});
+        fireEvent.change(starterInput, {target: {value: "390"}});
+        fireEvent.pointerDown(rowWidthInput, {pointerType: "mouse"});
+        fireEvent.change(rowWidthInput, {target: {value: "180"}});
+        expect(screen.getByRole("status")).toHaveTextContent("Pinned selection");
+        expect(starterInput).toHaveValue(390);
+        expect(rowWidthInput).toHaveValue(180);
         fireEvent.pointerDown(document.body, {pointerType: "mouse"});
         expect(screen.queryByRole("status")).not.toBeInTheDocument();
 
