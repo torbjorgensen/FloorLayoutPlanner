@@ -2,6 +2,7 @@ import {ActionButton} from "./ActionButton";
 import type {ConnectionStatus} from "../hooks/useProjectState";
 
 interface PlannerHeaderProps {
+    appVersion?: string;
     projectName?: string;
     connectionStatus: ConnectionStatus;
     connectionError: string | null;
@@ -10,6 +11,7 @@ interface PlannerHeaderProps {
 }
 
 export function PlannerHeader({
+    appVersion,
     projectName,
     connectionStatus,
     connectionError,
@@ -26,6 +28,7 @@ export function PlannerHeader({
         <header className="topbar">
             <div className="brand-block">
                 <h1>Floor Layout Planner</h1>
+                {appVersion && <span className="app-version">{appVersion}</span>}
                 <p className="project-subtitle">
                     {projectName || "Waiting for backend state"}
                 </p>

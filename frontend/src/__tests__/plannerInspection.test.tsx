@@ -197,6 +197,7 @@ describe("planner board inspection interactions", () => {
         fireEvent.pointerDown(canvas, {pointerType: "mouse", clientX: 100, clientY: 100});
         const starterInput = screen.getByRole("spinbutton", {name: "Starter length"});
         const rowWidthInput = screen.getByRole("spinbutton", {name: "First-row width"});
+        fireEvent.blur(canvas, {relatedTarget: starterInput});
         fireEvent.pointerDown(starterInput, {pointerType: "mouse"});
         fireEvent.change(starterInput, {target: {value: "390"}});
         fireEvent.pointerDown(rowWidthInput, {pointerType: "mouse"});

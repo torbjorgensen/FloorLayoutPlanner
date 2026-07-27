@@ -168,6 +168,7 @@ export interface ConnectionPayload {
 }
 
 export interface ProjectState {
+    app_version?: string;
     project_id?: string;
     project_version?: number;
     project_name: string;
