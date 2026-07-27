@@ -406,6 +406,7 @@ select {
     box-shadow:
         0 0 0 2px rgba(255, 207, 112, 0.24),
         var(--shadow-deep);
+    pointer-events: auto;
 }
 
 .board-inspection > strong,
