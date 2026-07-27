@@ -5,8 +5,13 @@ from pathlib import Path
 
 import pytest
 
+from floor_layout_planner.optimizer import (
+    build_candidate_inputs,
+    evaluate_candidate_fast,
+)
 from floor_layout_planner.web.app import PlannerApplication, create_app
-from floor_layout_planner.web.config import editable_room_settings
+from floor_layout_planner.web.config import editable_room_settings, merged_settings
+from floor_layout_planner.web.payloads import local_floor
 from floor_layout_planner.web.sockets import STATE_EVENT
 
 
@@ -196,3 +201,46 @@ def test_project_editor_save_reloads_allocated_runtime(
         reloaded.state.active_config["rooms"][0]["rectangles"][0]["width"]
         == updated_config["rooms"][0]["rectangles"][0]["width"]
     )
+
+
+def test_resolved_layout_can_preview_length_and_width_cuts(
+    runtime: PlannerApplication,
+) -> None:
+    project = runtime.projects.list()[0]
+    project_runtime = runtime.runtimes.get(project.id)
+    room = project.config["rooms"][0]
+    settings = merged_settings(project.config, room)
+    floor = local_floor(project.config, room)
+    candidate_input = build_candidate_inputs(
+        floor=floor,
+        board_length=float(project.config["board"]["length_mm"]),
+        board_width=float(project.config["board"]["width_mm"]),
+        orientation=settings["orientation"],
+        start_corner=settings["start_corner"],
+        stagger_step=float(settings["stagger_step_mm"]),
+        minimum_piece_length=float(settings["minimum_piece_length_mm"]),
+        minimum_joint_distance=float(settings["minimum_joint_distance_mm"]),
+        minimum_row_width=float(settings["minimum_row_width_mm"]),
+        preferred_minimum_row_width=float(settings["preferred_minimum_row_width_mm"]),
+        optimization_step=float(settings["optimization_step_mm"]),
+        row_width_optimization_step=float(settings["row_width_optimization_step_mm"]),
+    )[0]
+    candidate = evaluate_candidate_fast(candidate_input)
+    with project_runtime.state.lock:
+        room_state = project_runtime.state.rooms[room["id"]]
+        room_state.best = candidate
+        room_state.current = candidate
+        room_state.finished = True
+
+    response = runtime.app.test_client().post(
+        f"/api/projects/{project.id}/runtime/room/{room['id']}/starter-cut",
+        json={"row": 1, "length_mm": 650, "first_row_width_mm": 120},
+    )
+
+    assert response.status_code == 200
+    with project_runtime.state.lock:
+        adjusted = project_runtime.state.rooms[room["id"]].current
+    assert adjusted is not None
+    assert adjusted.phase == "manual_adjustment"
+    assert adjusted.row_offsets[1] == 650
+    assert adjusted.row_width_offset == 120

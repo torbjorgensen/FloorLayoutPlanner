@@ -6,7 +6,7 @@ interface BoardInspectionProps {
     inspection: PieceHit;
     boardParts?: InspectablePiece[];
     layoutPieces?: Piece[];
-    onAdjustStarterCut?: (row: number, length: number) => void;
+    onAdjustStarterCut?: (row: number, length: number, firstRowWidth: number) => void;
     onResetStarterCut?: () => void;
     pinned?: boolean;
     room?: RoomStatePayload | null;
@@ -43,6 +43,14 @@ export function BoardInspection({
     const tolerance = room
         ? starterCutTolerance(layoutPieces, room, piece)
         : null;
+    const firstRowPieces = layoutPieces.filter(item => item.row === 1);
+    const firstRowWidth = room && firstRowPieces.length
+        ? room.settings.orientation === "horizontal"
+            ? Math.max(...firstRowPieces.map(item => item.y2))
+                - Math.min(...firstRowPieces.map(item => item.y1))
+            : Math.max(...firstRowPieces.map(item => item.x2))
+                - Math.min(...firstRowPieces.map(item => item.x1))
+        : room?.settings.board_width_mm || 0;
     const boardName = piece.physical_board_id
         || `Board ${piece.source_board_index ?? "–"}`;
 
@@ -94,9 +102,14 @@ export function BoardInspection({
                 {onAdjustStarterCut && <form onSubmit={event => {
                     event.preventDefault();
                     const form = new FormData(event.currentTarget);
-                    onAdjustStarterCut(piece.row, Number(form.get("length_mm")));
+                    onAdjustStarterCut(
+                        piece.row,
+                        Number(form.get("length_mm")),
+                        Number(form.get("first_row_width_mm")),
+                    );
                 }}>
-                    <input defaultValue={formatNumber(tolerance.planned)} min="1" name="length_mm" step="1" type="number" />
+                    <label><span>Starter length</span><input defaultValue={formatNumber(tolerance.planned)} min="1" name="length_mm" step="1" type="number" /></label>
+                    <label><span>First-row width</span><input defaultValue={formatNumber(firstRowWidth)} max={room?.settings.board_width_mm} min="1" name="first_row_width_mm" step="1" type="number" /></label>
                     <button type="submit">Preview cut</button>
                     {onResetStarterCut && <button onClick={onResetStarterCut} type="button">Reset</button>}
                 </form>}
