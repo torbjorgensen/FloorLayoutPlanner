@@ -143,16 +143,20 @@ def register_runtime_routes(app: Flask, registry: ProjectRuntimeRegistry) -> Non
         try:
             row = int(payload["row"])
             length = float(payload["length_mm"])
+            first_row_width = float(payload["first_row_width_mm"])
         except (KeyError, TypeError, ValueError) as exc:
-            raise ValueError("'row' and 'length_mm' must be numbers.") from exc
+            raise ValueError(
+                "'row', 'length_mm', and 'first_row_width_mm' must be numbers."
+            ) from exc
         candidate = runtime.workers.adjust_start_cut(
-            room_id, row, length, current_config(runtime)
+            room_id, row, length, first_row_width, current_config(runtime)
         )
         return jsonify(
             {
                 "ok": True,
                 "row": row,
                 "length_mm": length,
+                "first_row_width_mm": first_row_width,
                 "short_count": candidate.short_count,
                 "joint_violations": candidate.joint_violations,
             }

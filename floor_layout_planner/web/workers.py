@@ -46,7 +46,7 @@ class WorkerManager:
     room_by_id: Callable[[dict[str, Any], str], dict[str, Any]]
     start_room: Callable[[str, dict[str, Any]], None]
     start_all: Callable[[dict[str, Any]], None]
-    adjust_start_cut: Callable[[str, int, float, dict[str, Any]], Candidate]
+    adjust_start_cut: Callable[[str, int, float, float, dict[str, Any]], Candidate]
     reset_adjustment: Callable[[str], None]
     shutdown: Callable[[], None]
 
@@ -830,17 +830,24 @@ def create_worker_manager(
         room_id: str,
         row: int,
         length: float,
+        first_row_width: float,
         config: dict[str, Any],
     ) -> Candidate:
         room = room_by_id(config, room_id)
         settings = merged_settings(config, room)
         board_length = float(config["board"]["length_mm"])
+        board_width = float(config["board"]["width_mm"])
         if row <= 0:
             raise ValueError("'row' must be a positive integer.")
         if length <= 0 or length > board_length:
             raise ValueError(
                 "Starter cut must be greater than 0 and no longer than "
                 f"{board_length:g} mm."
+            )
+        if first_row_width <= 0 or first_row_width > board_width:
+            raise ValueError(
+                "First-row width must be greater than 0 and no wider than "
+                f"{board_width:g} mm."
             )
         with state.lock:
             room_state = state.rooms.get(room_id)
@@ -852,18 +859,19 @@ def create_worker_manager(
 
         row_offsets = dict(baseline.row_offsets)
         row_offsets[row] = length
+        row_width_offset = (board_width - first_row_width) % board_width
         floor = local_floor(config, room)
         pieces = create_plan(
             floor=floor,
             board_length=board_length,
-            board_width=float(config["board"]["width_mm"]),
+            board_width=board_width,
             orientation=str(settings["orientation"]),
             start_corner=str(settings["start_corner"]),
             stagger_step=float(settings["stagger_step_mm"]),
             minimum_piece_length=float(settings["minimum_piece_length_mm"]),
             base_offset=baseline.base_offset,
             row_offsets=row_offsets,
-            row_width_offset=baseline.row_width_offset,
+            row_width_offset=row_width_offset,
             saw_kerf_mm=float(config["board"].get("saw_kerf_mm", 3.2)),
         )
         evaluation = evaluate_pieces(
@@ -874,8 +882,8 @@ def create_worker_manager(
             float(settings["minimum_row_width_mm"]),
             float(settings["preferred_minimum_row_width_mm"]),
             floor,
-            float(config["board"]["width_mm"]),
-            baseline.row_width_offset,
+            board_width,
+            row_width_offset,
             str(settings["start_corner"]),
         )
         (
@@ -896,6 +904,7 @@ def create_worker_manager(
         adjusted = replace(
             baseline,
             phase="manual_adjustment",
+            row_width_offset=row_width_offset,
             pieces=pieces,
             short_count=short_count,
             very_short_count=very_short_count,
