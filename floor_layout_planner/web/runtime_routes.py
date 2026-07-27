@@ -136,6 +136,34 @@ def register_runtime_routes(app: Flask, registry: ProjectRuntimeRegistry) -> Non
         runtime.workers.start_room(room_id, config)
         return jsonify({"ok": True})
 
+    @api.post("/room/<room_id>/starter-cut")
+    def room_starter_cut(project_id: str, room_id: str):
+        runtime = registry.get(project_id)
+        payload = request.get_json(silent=True) or {}
+        try:
+            row = int(payload["row"])
+            length = float(payload["length_mm"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("'row' and 'length_mm' must be numbers.") from exc
+        candidate = runtime.workers.adjust_start_cut(
+            room_id, row, length, current_config(runtime)
+        )
+        return jsonify(
+            {
+                "ok": True,
+                "row": row,
+                "length_mm": length,
+                "short_count": candidate.short_count,
+                "joint_violations": candidate.joint_violations,
+            }
+        )
+
+    @api.post("/room/<room_id>/starter-cut/reset")
+    def room_starter_cut_reset(project_id: str, room_id: str):
+        runtime = registry.get(project_id)
+        runtime.workers.reset_adjustment(room_id)
+        return jsonify({"ok": True})
+
     @api.post("/restart-all")
     def restart_all(project_id: str):
         logger.info("Restarting project optimization project_id=%s", project_id)

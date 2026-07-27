@@ -6,6 +6,8 @@ interface BoardInspectionProps {
     inspection: PieceHit;
     boardParts?: InspectablePiece[];
     layoutPieces?: Piece[];
+    onAdjustStarterCut?: (row: number, length: number) => void;
+    onResetStarterCut?: () => void;
     pinned?: boolean;
     room?: RoomStatePayload | null;
 }
@@ -14,6 +16,8 @@ export function BoardInspection({
     inspection,
     boardParts = [inspection],
     layoutPieces = [],
+    onAdjustStarterCut,
+    onResetStarterCut,
     pinned = false,
     room = null,
 }: BoardInspectionProps) {
@@ -87,6 +91,15 @@ export function BoardInspection({
                 <strong>Safe starter-cut range</strong>
                 <span>{`${formatNumber(tolerance.planned - tolerance.shorter)}–${formatNumber(tolerance.planned + tolerance.longer)} mm`}</span>
                 <small>{`Planned ${formatNumber(tolerance.planned)} mm · −${formatNumber(tolerance.shorter)} / +${formatNumber(tolerance.longer)} mm${tolerance.capped ? " or more" : ""}`}</small>
+                {onAdjustStarterCut && <form onSubmit={event => {
+                    event.preventDefault();
+                    const form = new FormData(event.currentTarget);
+                    onAdjustStarterCut(piece.row, Number(form.get("length_mm")));
+                }}>
+                    <input defaultValue={formatNumber(tolerance.planned)} min="1" name="length_mm" step="1" type="number" />
+                    <button type="submit">Preview cut</button>
+                    {onResetStarterCut && <button onClick={onResetStarterCut} type="button">Reset</button>}
+                </form>}
             </section>}
             <section className="board-inspection-parts">
                 <strong>{`Installed pieces from this board (${installedParts.length})`}</strong>

@@ -461,6 +461,26 @@ select {
     color: rgba(255, 250, 245, 0.72);
 }
 
+.board-inspection-tolerance form {
+    display: grid;
+    grid-template-columns: minmax(70px, 1fr) auto auto;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.board-inspection-tolerance input,
+.board-inspection-tolerance button {
+    min-width: 0;
+    padding: 4px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 5px;
+}
+
+.board-inspection-tolerance button {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+}
+
 .board-inspection-parts {
     margin-top: 10px;
     padding-top: 9px;

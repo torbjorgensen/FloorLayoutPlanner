@@ -521,6 +521,34 @@ function PlannerPage({projectId}: PlannerPageProps) {
         }
     }
 
+    async function handleStarterCut(row: number, length: number) {
+        if (!selectedRoom || !projectId || !Number.isFinite(length)) return;
+        try {
+            const response = await fetch(`/api/projects/${projectId}/runtime/room/${selectedRoom.id}/starter-cut`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({row, length_mm: length}),
+            });
+            const payload = await response.json() as {ok: boolean; error?: string; short_count?: number; joint_violations?: number};
+            if (!response.ok || !payload.ok) throw new Error(payload.error || "Could not preview starter cut.");
+            setValidationMessage(`Previewing row ${row} with a ${formatNumber(length)} mm starter. Short pieces: ${payload.short_count || 0}; joint violations: ${payload.joint_violations || 0}.`);
+        } catch (error) {
+            setValidationMessage(error instanceof Error ? error.message : "Could not preview starter cut.");
+        }
+    }
+
+    async function resetStarterCut() {
+        if (!selectedRoom || !projectId) return;
+        try {
+            const response = await fetch(`/api/projects/${projectId}/runtime/room/${selectedRoom.id}/starter-cut/reset`, {method: "POST"});
+            const payload = await response.json() as {ok: boolean; error?: string};
+            if (!response.ok || !payload.ok) throw new Error(payload.error || "Could not reset starter cut.");
+            setValidationMessage("Restored the optimized layout.");
+        } catch (error) {
+            setValidationMessage(error instanceof Error ? error.message : "Could not reset starter cut.");
+        }
+    }
+
     async function handleRestartAll() {
         stopSimulation();
         try {
@@ -847,6 +875,8 @@ function PlannerPage({projectId}: PlannerPageProps) {
                                     boardParts={inspectedBoardParts}
                                     inspection={inspectedPiece}
                                     layoutPieces={inspectedRoomPieces}
+                                    onAdjustStarterCut={(row, length) => void handleStarterCut(row, length)}
+                                    onResetStarterCut={() => void resetStarterCut()}
                                     pinned={inspectionPinned}
                                     room={state?.rooms.find(room => room.id === inspectedPiece.roomId)}
                                 />
