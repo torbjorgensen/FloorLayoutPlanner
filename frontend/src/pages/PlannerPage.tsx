@@ -371,6 +371,11 @@ function PlannerPage({projectId}: PlannerPageProps) {
         setInspectionPinned(Boolean(hit));
     }
 
+    function isInspectionTarget(target: EventTarget | null) {
+        return target instanceof Node
+            && Boolean(document.getElementById("boardInspection")?.contains(target));
+    }
+
     function handleCanvasKeyDown(event: React.KeyboardEvent<HTMLCanvasElement>) {
         const navigationKeys = [
             "ArrowRight",
@@ -704,6 +709,7 @@ function PlannerPage({projectId}: PlannerPageProps) {
     return (
         <div className="app-shell">
             <PlannerHeader
+                appVersion={state?.app_version}
                 projectName={state?.project_name}
                 connectionStatus={connectionStatus}
                 connectionError={connectionError}
@@ -859,18 +865,19 @@ function PlannerPage({projectId}: PlannerPageProps) {
                                 ref={canvasRef}
                                 aria-describedby={inspectedPiece ? "boardInspection" : undefined}
                                 aria-label="Floor plan. Use arrow keys to inspect board pieces."
-                                onBlur={() => {
+                                onBlur={event => {
+                                    if (isInspectionTarget(event.relatedTarget)) return;
                                     setInspectedPiece(null);
                                     setInspectionPinned(false);
                                 }}
                                 onKeyDown={handleCanvasKeyDown}
                                 onPointerDown={handleCanvasPointerDown}
-                                onPointerLeave={() => {
+                                onPointerLeave={event => {
                                     if (hoverFrameRef.current !== null) {
                                         window.cancelAnimationFrame(hoverFrameRef.current);
                                         hoverFrameRef.current = null;
                                     }
-                                    if (!inspectionPinned) {
+                                    if (!inspectionPinned && !isInspectionTarget(event.relatedTarget)) {
                                         setInspectedPiece(null);
                                     }
                                 }}

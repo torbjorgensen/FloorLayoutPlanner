@@ -9,6 +9,8 @@ from floor_layout_planner.continuous_solver import cut_plan_payload
 from floor_layout_planner.web.payloads import room_canvas_payload
 from floor_layout_planner.web.state import ProjectState
 
+APP_VERSION = "v0.8.0-rc.10"
+
 
 def build_state_payload(state: ProjectState, output_dir: Path) -> dict[str, Any]:
     """Build a consistent project snapshot while holding the state lock."""
@@ -38,6 +40,7 @@ def build_state_payload(state: ProjectState, output_dir: Path) -> dict[str, Any]
         "max_y": max(item["max_y"] for item in bounds),
     }
     return {
+        "app_version": APP_VERSION,
         "project_name": config["project_name"],
         "board": config["board"],
         "rooms": rooms,

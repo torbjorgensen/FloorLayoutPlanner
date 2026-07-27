@@ -78,6 +78,16 @@ select {
     font-size: clamp(2rem, 3vw, 3.1rem);
 }
 
+.app-version {
+    align-self: center;
+    padding: 2px 7px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
 .eyebrow {
     margin: 0 0 8px;
     color: var(--accent-strong);
@@ -862,7 +872,7 @@ summary {
 
     .brand-block {
         display: grid;
-        grid-template-columns: auto auto;
+        grid-template-columns: auto auto auto;
         align-items: baseline;
         column-gap: 16px;
     }
