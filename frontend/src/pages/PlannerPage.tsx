@@ -179,6 +179,23 @@ function PlannerPage({projectId}: PlannerPageProps) {
         () => roomById(state, selectedRoomId),
         [state, selectedRoomId],
     );
+    const inspectedBoardParts = useMemo(() => {
+        if (!state || !inspectedPiece) return [];
+        return inspectableFloorPieces(state)
+            .filter(item => item.boardKey === inspectedPiece.boardKey)
+            .sort((left, right) =>
+                left.roomName.localeCompare(right.roomName)
+                || left.piece.row - right.piece.row
+                || left.piece.segment - right.piece.segment
+                || left.piece.piece - right.piece.piece,
+            );
+    }, [state, inspectedPiece]);
+    const inspectedRoomPieces = useMemo(() => {
+        if (!state || !inspectedPiece) return [];
+        return inspectableFloorPieces(state)
+            .filter(item => item.roomId === inspectedPiece.roomId && item.boardScope === inspectedPiece.boardScope)
+            .map(item => item.piece);
+    }, [state, inspectedPiece]);
 
     useEffect(() => {
         if (!state) {
@@ -504,6 +521,34 @@ function PlannerPage({projectId}: PlannerPageProps) {
         }
     }
 
+    async function handleStarterCut(row: number, length: number) {
+        if (!selectedRoom || !projectId || !Number.isFinite(length)) return;
+        try {
+            const response = await fetch(`/api/projects/${projectId}/runtime/room/${selectedRoom.id}/starter-cut`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({row, length_mm: length}),
+            });
+            const payload = await response.json() as {ok: boolean; error?: string; short_count?: number; joint_violations?: number};
+            if (!response.ok || !payload.ok) throw new Error(payload.error || "Could not preview starter cut.");
+            setValidationMessage(`Previewing row ${row} with a ${formatNumber(length)} mm starter. Short pieces: ${payload.short_count || 0}; joint violations: ${payload.joint_violations || 0}.`);
+        } catch (error) {
+            setValidationMessage(error instanceof Error ? error.message : "Could not preview starter cut.");
+        }
+    }
+
+    async function resetStarterCut() {
+        if (!selectedRoom || !projectId) return;
+        try {
+            const response = await fetch(`/api/projects/${projectId}/runtime/room/${selectedRoom.id}/starter-cut/reset`, {method: "POST"});
+            const payload = await response.json() as {ok: boolean; error?: string};
+            if (!response.ok || !payload.ok) throw new Error(payload.error || "Could not reset starter cut.");
+            setValidationMessage("Restored the optimized layout.");
+        } catch (error) {
+            setValidationMessage(error instanceof Error ? error.message : "Could not reset starter cut.");
+        }
+    }
+
     async function handleRestartAll() {
         stopSimulation();
         try {
@@ -623,6 +668,13 @@ function PlannerPage({projectId}: PlannerPageProps) {
         ? continuousConnectionForRoom(state, selectedRoom.id)
         : null;
     const candidate = candidateForRoom(state, selectedRoom);
+    const narrowRowAdvice = candidate && selectedRoom
+        && candidate.narrowest_row_width !== undefined
+        && candidate.narrowest_row_width < selectedRoom.settings.preferred_minimum_row_width_mm
+        ? candidate.narrowest_row_width < selectedRoom.settings.minimum_row_width_mm
+            ? `The narrowest row is below the ${formatNumber(selectedRoom.settings.minimum_row_width_mm)} mm absolute minimum. Try the other laying direction or adjust the room geometry before installation.`
+            : `The narrowest row is below the preferred ${formatNumber(selectedRoom.settings.preferred_minimum_row_width_mm)} mm. Try a row-width search step of 5 mm and restart the room; changing laying direction can also produce wider edge rows.`
+        : null;
     const progressValue = connection?.continuous?.running
         ? Math.max(
             0,
@@ -820,8 +872,13 @@ function PlannerPage({projectId}: PlannerPageProps) {
                             ></canvas>
                             {inspectedPiece && (
                                 <BoardInspection
+                                    boardParts={inspectedBoardParts}
                                     inspection={inspectedPiece}
+                                    layoutPieces={inspectedRoomPieces}
+                                    onAdjustStarterCut={(row, length) => void handleStarterCut(row, length)}
+                                    onResetStarterCut={() => void resetStarterCut()}
                                     pinned={inspectionPinned}
+                                    room={state?.rooms.find(room => room.id === inspectedPiece.roomId)}
                                 />
                             )}
                         </div>
@@ -959,6 +1016,7 @@ function PlannerPage({projectId}: PlannerPageProps) {
                                     ],
                                 ]} />
                                 : "–"}
+                            {narrowRowAdvice && <Alert className="mt-3 mb-0" variant={candidate && candidate.very_narrow_row_count ? "danger" : "warning"}>{narrowRowAdvice}</Alert>}
                         </div>
                     </section>
 

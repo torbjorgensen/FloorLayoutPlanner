@@ -151,9 +151,9 @@ def evaluate_pieces(
     score = (
         short_count,
         very_short_count,
-        joint_violations,
         very_narrow_count,
         narrow_count,
+        joint_violations,
         -narrowest_width,
         -shortest_piece,
     )

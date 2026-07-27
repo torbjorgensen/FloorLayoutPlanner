@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 from typing import Any
 
 from flask import Blueprint, Flask, jsonify, request
@@ -14,6 +15,8 @@ from floor_layout_planner.web.runtime import (
     ProjectRuntimeRegistry,
     ProjectUnavailableError,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def register_runtime_routes(app: Flask, registry: ProjectRuntimeRegistry) -> None:
@@ -27,14 +30,17 @@ def register_runtime_routes(app: Flask, registry: ProjectRuntimeRegistry) -> Non
     @api.errorhandler(ProjectNotFoundError)
     @api.errorhandler(ProjectUnavailableError)
     def unavailable(exc: LookupError):
+        logger.warning("Runtime unavailable path=%s error=%s", request.path, exc)
         return jsonify({"ok": False, "error": str(exc)}), 404
 
     @api.errorhandler(ProjectConflictError)
     def conflict(exc: ProjectConflictError):
+        logger.warning("Runtime conflict path=%s error=%s", request.path, exc)
         return jsonify({"ok": False, "error": str(exc)}), 409
 
     @api.errorhandler(ValueError)
     def invalid(exc: ValueError):
+        logger.warning("Invalid runtime request path=%s error=%s", request.path, exc)
         return jsonify({"ok": False, "error": str(exc)}), 400
 
     def current_config(runtime: ProjectRuntime) -> dict[str, Any]:
@@ -54,6 +60,9 @@ def register_runtime_routes(app: Flask, registry: ProjectRuntimeRegistry) -> Non
 
     @api.post("/room/<room_id>/apply")
     def room_apply(project_id: str, room_id: str):
+        logger.info(
+            "Applying room settings project_id=%s room_id=%s", project_id, room_id
+        )
         runtime = registry.get(project_id)
         updated = update_room_settings(
             current_config(runtime), room_id, request.get_json(silent=True) or {}
@@ -65,6 +74,9 @@ def register_runtime_routes(app: Flask, registry: ProjectRuntimeRegistry) -> Non
 
     @api.post("/room/<room_id>/save")
     def room_save(project_id: str, room_id: str):
+        logger.info(
+            "Saving room settings project_id=%s room_id=%s", project_id, room_id
+        )
         runtime = registry.get(project_id)
         updated_config = update_room_settings(
             current_config(runtime), room_id, request.get_json(silent=True) or {}
@@ -85,6 +97,9 @@ def register_runtime_routes(app: Flask, registry: ProjectRuntimeRegistry) -> Non
 
     @api.post("/room/<room_id>/reset")
     def room_reset(project_id: str, room_id: str):
+        logger.info(
+            "Resetting room settings project_id=%s room_id=%s", project_id, room_id
+        )
         runtime = registry.get(project_id)
         stored = registry.projects.get(project_id)
         runtime.workers.room_by_id(stored.config, room_id)
@@ -121,8 +136,37 @@ def register_runtime_routes(app: Flask, registry: ProjectRuntimeRegistry) -> Non
         runtime.workers.start_room(room_id, config)
         return jsonify({"ok": True})
 
+    @api.post("/room/<room_id>/starter-cut")
+    def room_starter_cut(project_id: str, room_id: str):
+        runtime = registry.get(project_id)
+        payload = request.get_json(silent=True) or {}
+        try:
+            row = int(payload["row"])
+            length = float(payload["length_mm"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("'row' and 'length_mm' must be numbers.") from exc
+        candidate = runtime.workers.adjust_start_cut(
+            room_id, row, length, current_config(runtime)
+        )
+        return jsonify(
+            {
+                "ok": True,
+                "row": row,
+                "length_mm": length,
+                "short_count": candidate.short_count,
+                "joint_violations": candidate.joint_violations,
+            }
+        )
+
+    @api.post("/room/<room_id>/starter-cut/reset")
+    def room_starter_cut_reset(project_id: str, room_id: str):
+        runtime = registry.get(project_id)
+        runtime.workers.reset_adjustment(room_id)
+        return jsonify({"ok": True})
+
     @api.post("/restart-all")
     def restart_all(project_id: str):
+        logger.info("Restarting project optimization project_id=%s", project_id)
         runtime = registry.get(project_id)
         runtime.workers.start_all(current_config(runtime))
         return jsonify({"ok": True})

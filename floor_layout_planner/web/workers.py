@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import copy
+import logging
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable
 
@@ -11,6 +12,7 @@ from floor_layout_planner.continuous_solver import (
     build_continuous_floor,
     split_candidate_at_cut,
 )
+from floor_layout_planner.material import material_metrics, material_score
 from floor_layout_planner.models import Candidate
 from floor_layout_planner.optimizer import (
     build_candidate_inputs,
@@ -20,9 +22,12 @@ from floor_layout_planner.optimizer import (
     parallel_continuous_refine_generator,
     parallel_refine_generator,
 )
+from floor_layout_planner.planner import create_plan
 from floor_layout_planner.renderer import plot_plan
+from floor_layout_planner.scorer import evaluate_pieces
 from floor_layout_planner.validation import (
     InfeasibleLayoutError,
+    candidate_meets_installation_minimums,
     candidate_meets_minimum_length,
     cut_plan_meets_minimum_length,
     select_best_valid_candidate,
@@ -33,12 +38,16 @@ from floor_layout_planner.web.outputs import write_piece_csv
 from floor_layout_planner.web.payloads import local_floor
 from floor_layout_planner.web.state import ProjectState, RoomState
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True)
 class WorkerManager:
     room_by_id: Callable[[dict[str, Any], str], dict[str, Any]]
     start_room: Callable[[str, dict[str, Any]], None]
     start_all: Callable[[dict[str, Any]], None]
+    adjust_start_cut: Callable[[str, int, float, dict[str, Any]], Candidate]
+    reset_adjustment: Callable[[str], None]
     shutdown: Callable[[], None]
 
 
@@ -92,7 +101,7 @@ def create_worker_manager(
         room = room_by_id(config_snapshot, room_id)
         settings = merged_settings(config_snapshot, room)
         minimum_length = float(settings["minimum_piece_length_mm"])
-        if not candidate_meets_minimum_length(best, minimum_length):
+        if not candidate_meets_installation_minimums(best, minimum_length):
             raise InfeasibleLayoutError(
                 f"Refusing to write invalid output for {room_id}: one or more "
                 f"pieces are shorter than {minimum_length:g} mm."
@@ -120,6 +129,12 @@ def create_worker_manager(
         config_snapshot: dict[str, Any],
     ) -> None:
         try:
+            logger.info(
+                "Room optimization started room_id=%s generation=%d project=%s",
+                room_id,
+                generation,
+                config_snapshot.get("project_name", "unknown"),
+            )
             room = room_by_id(config_snapshot, room_id)
             settings = merged_settings(config_snapshot, room)
             minimum_length = float(settings["minimum_piece_length_mm"])
@@ -237,7 +252,9 @@ def create_worker_manager(
                     if generation != room_state.generation:
                         return
 
-                    is_valid = candidate_meets_minimum_length(candidate, minimum_length)
+                    is_valid = candidate_meets_installation_minimums(
+                        candidate, minimum_length
+                    )
                     is_new_best = is_valid and (
                         room_state.best is None
                         or candidate.score < room_state.best.score
@@ -317,7 +334,9 @@ def create_worker_manager(
                     if generation != room_state.generation:
                         return
 
-                    is_valid = candidate_meets_minimum_length(candidate, minimum_length)
+                    is_valid = candidate_meets_installation_minimums(
+                        candidate, minimum_length
+                    )
                     is_new_best = is_valid and (
                         room_state.best is None
                         or candidate.score < room_state.best.score
@@ -365,7 +384,21 @@ def create_worker_manager(
                     room_state.profile["elapsed_s"] = time.perf_counter() - started_at
 
             notify_state_changed()
+            logger.info(
+                "Room optimization finished room_id=%s generation=%d "
+                "elapsed_s=%.3f pieces=%d",
+                room_id,
+                generation,
+                time.perf_counter() - started_at,
+                len(final_best.pieces),
+            )
         except Exception as exc:
+            logger.exception(
+                "Room optimization failed room_id=%s generation=%d error=%s",
+                room_id,
+                generation,
+                exc,
+            )
             with state.lock:
                 room_state = state.rooms[room_id]
 
@@ -384,6 +417,11 @@ def create_worker_manager(
     ) -> None:
         continuous_state = state.continuous[connection.connection_id]
         try:
+            logger.info(
+                "Transition optimization started connection_id=%s generation=%d",
+                connection.connection_id,
+                generation,
+            )
             room_a = room_by_id(config_snapshot, connection.room_a)
             room_b = room_by_id(config_snapshot, connection.room_b)
             settings_a = merged_settings(config_snapshot, room_a)
@@ -673,7 +711,21 @@ def create_worker_manager(
                     }
                 )
             notify_state_changed()
+            logger.info(
+                "Transition optimization finished connection_id=%s generation=%d "
+                "elapsed_s=%.3f",
+                connection.connection_id,
+                generation,
+                time.perf_counter() - started_at,
+            )
         except Exception as exc:
+            logger.exception(
+                "Transition optimization failed connection_id=%s "
+                "generation=%d error=%s",
+                connection.connection_id,
+                generation,
+                exc,
+            )
             with state.lock:
                 continuous_state.error = str(exc)
                 continuous_state.running = False
@@ -726,6 +778,7 @@ def create_worker_manager(
             return
         room = room_by_id(config, room_id)
         local_floor(config, room)  # validate synchronously
+        logger.info("Scheduling room optimization room_id=%s", room_id)
 
         with state.lock:
             if room_id not in state.rooms:
@@ -761,15 +814,120 @@ def create_worker_manager(
         start_background(optimizer_worker, room_id, generation, copy.deepcopy(config))
 
     def start_all(config: dict[str, Any]) -> None:
+        logger.info(
+            "Scheduling project optimization project=%s rooms=%d connections=%d",
+            config.get("project_name", "unknown"),
+            len(config["rooms"]),
+            len(state.connections),
+        )
         for room in config["rooms"]:
             start_room(room["id"], config)
         for connection in state.connections:
             if connection.connection_type == "continuous_then_cut":
                 start_continuous(connection, config)
 
+    def adjust_start_cut(
+        room_id: str,
+        row: int,
+        length: float,
+        config: dict[str, Any],
+    ) -> Candidate:
+        room = room_by_id(config, room_id)
+        settings = merged_settings(config, room)
+        board_length = float(config["board"]["length_mm"])
+        if row <= 0:
+            raise ValueError("'row' must be a positive integer.")
+        if length <= 0 or length > board_length:
+            raise ValueError(
+                "Starter cut must be greater than 0 and no longer than "
+                f"{board_length:g} mm."
+            )
+        with state.lock:
+            room_state = state.rooms.get(room_id)
+            baseline = room_state.best if room_state is not None else None
+        if baseline is None or not baseline.pieces:
+            raise ValueError("Resolve the room before adjusting a starter cut.")
+        if not any(piece.row == row for piece in baseline.pieces):
+            raise ValueError(f"Unknown row: {row}")
+
+        row_offsets = dict(baseline.row_offsets)
+        row_offsets[row] = length
+        floor = local_floor(config, room)
+        pieces = create_plan(
+            floor=floor,
+            board_length=board_length,
+            board_width=float(config["board"]["width_mm"]),
+            orientation=str(settings["orientation"]),
+            start_corner=str(settings["start_corner"]),
+            stagger_step=float(settings["stagger_step_mm"]),
+            minimum_piece_length=float(settings["minimum_piece_length_mm"]),
+            base_offset=baseline.base_offset,
+            row_offsets=row_offsets,
+            row_width_offset=baseline.row_width_offset,
+            saw_kerf_mm=float(config["board"].get("saw_kerf_mm", 3.2)),
+        )
+        evaluation = evaluate_pieces(
+            pieces,
+            float(settings["minimum_piece_length_mm"]),
+            str(settings["orientation"]),
+            float(settings["minimum_joint_distance_mm"]),
+            float(settings["minimum_row_width_mm"]),
+            float(settings["preferred_minimum_row_width_mm"]),
+            floor,
+            float(config["board"]["width_mm"]),
+            baseline.row_width_offset,
+            str(settings["start_corner"]),
+        )
+        (
+            short_count,
+            very_short_count,
+            shortest_piece,
+            joint_violations,
+            narrow_count,
+            very_narrow_count,
+            narrowest_width,
+            score,
+        ) = evaluation
+        metrics = material_metrics(
+            pieces,
+            board_length,
+            float(config["board"].get("saw_kerf_mm", 3.2)),
+        )
+        adjusted = replace(
+            baseline,
+            phase="manual_adjustment",
+            pieces=pieces,
+            short_count=short_count,
+            very_short_count=very_short_count,
+            shortest_piece=shortest_piece,
+            joint_violations=joint_violations,
+            narrow_row_count=narrow_count,
+            very_narrow_row_count=very_narrow_count,
+            narrowest_row_width=narrowest_width,
+            row_offsets=row_offsets,
+            score=(*score, *material_score(metrics)),
+            timings={**baseline.timings, "manual_adjustment": 1},
+            material_metrics=metrics,
+        )
+        with state.lock:
+            state.rooms[room_id].current = adjusted
+            state.rooms[room_id].profile["phase"] = "manual_adjustment"
+        notify_state_changed()
+        return adjusted
+
+    def reset_adjustment(room_id: str) -> None:
+        with state.lock:
+            room_state = state.rooms.get(room_id)
+            if room_state is None or room_state.best is None:
+                raise ValueError("Resolve the room before resetting an adjustment.")
+            room_state.current = room_state.best
+            room_state.profile["phase"] = "finished"
+        notify_state_changed()
+
     def shutdown() -> None:
         """Cancel coordinators and briefly wait for them to release resources."""
         shutdown_requested.set()
+        logger.info("Stopping optimizer workers active_threads=%d", len(active_threads))
         with state.lock:
             for room in state.rooms.values():
                 room.generation += 1
@@ -788,5 +946,7 @@ def create_worker_manager(
         room_by_id=room_by_id,
         start_room=start_room,
         start_all=start_all,
+        adjust_start_cut=adjust_start_cut,
+        reset_adjustment=reset_adjustment,
         shutdown=shutdown,
     )

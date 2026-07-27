@@ -176,6 +176,74 @@ export function layingVector(room: RoomStatePayload | null) {
         : {x: 0, y: 1};
 }
 
+export interface StarterCutTolerance {
+    planned: number;
+    shorter: number;
+    longer: number;
+    capped: boolean;
+}
+
+export function starterCutTolerance(
+    pieces: Piece[],
+    room: RoomStatePayload,
+    selected: Piece,
+    searchLimit = 100,
+): StarterCutTolerance | null {
+    const axis = room.settings.orientation === "horizontal" ? "x" : "y";
+    const direction = layingVector(room)[axis];
+    const coordinate = (piece: Piece, end: "start" | "end") => {
+        const low = axis === "x" ? piece.x1 : piece.y1;
+        const high = axis === "x" ? piece.x2 : piece.y2;
+        return direction > 0 === (end === "start") ? low : high;
+    };
+    const installedForRow = (row: number) => {
+        const groups = new Map<string, Piece[]>();
+        for (const piece of pieces.filter(piece => piece.row === row)) {
+            const key = piece.physical_board_id || `${piece.segment}:${piece.piece}`;
+            groups.set(key, [...(groups.get(key) || []), piece]);
+        }
+        return [...groups.values()].map(fragments => ({
+            fragments,
+            start: Math.min(...fragments.map(piece => coordinate(piece, "start") * direction)),
+            length: Math.max(...fragments.map(piece => piece.length)),
+        })).sort((left, right) => left.start - right.start);
+    };
+    const installed = installedForRow(selected.row);
+    const selectedIndex = installed.findIndex(group =>
+        group.fragments.includes(selected),
+    );
+    if (selectedIndex !== 0 || installed.length < 2) return null;
+
+    const joints = installed.slice(0, -1).map(group =>
+        Math.max(...group.fragments.map(piece => coordinate(piece, "end"))),
+    );
+    const neighbourJoints = [selected.row - 1, selected.row + 1].flatMap(row =>
+        installedForRow(row).slice(0, -1).map(group =>
+            Math.max(...group.fragments.map(piece => coordinate(piece, "end"))),
+        ),
+    );
+    const minimumPiece = room.settings.minimum_piece_length_mm;
+    const minimumJoint = room.settings.minimum_joint_distance_mm;
+    const starterLength = installed[0].length;
+    const endLength = installed[installed.length - 1].length;
+    const valid = (delta: number) =>
+        starterLength + delta >= minimumPiece
+        && endLength - delta >= minimumPiece
+        && joints.every(joint => neighbourJoints.every(neighbour =>
+            Math.abs(joint + direction * delta - neighbour) >= minimumJoint,
+        ));
+    let shorter = 0;
+    let longer = 0;
+    while (shorter < searchLimit && valid(-(shorter + 1))) shorter += 1;
+    while (longer < searchLimit && valid(longer + 1)) longer += 1;
+    return {
+        planned: starterLength,
+        shorter,
+        longer,
+        capped: shorter === searchLimit || longer === searchLimit,
+    };
+}
+
 export function compareAlongDirection(
     first: Piece,
     second: Piece,

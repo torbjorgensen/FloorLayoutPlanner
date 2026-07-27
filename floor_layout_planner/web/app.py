@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,6 +11,7 @@ from flask_socketio import SocketIO
 
 from floor_layout_planner.storage import ProjectService, initialize_project_storage
 from floor_layout_planner.web.config import load_config
+from floor_layout_planner.web.logging_config import configure_backend_logging
 from floor_layout_planner.web.project_routes import register_project_routes
 from floor_layout_planner.web.routes import register_command_routes
 from floor_layout_planner.web.runtime import ProjectRuntimeRegistry
@@ -42,6 +44,9 @@ def create_app(
     database_url: str | None = None,
 ) -> PlannerApplication:
     """Create the planner runtime and its database-backed project catalog."""
+    configure_backend_logging()
+    logger = logging.getLogger(__name__)
+    logger.info("Starting planner backend config_path=%s", config_path)
     initial_config = load_config(config_path)
     configured_database_url = (
         database_url
@@ -53,6 +58,7 @@ def create_app(
         # Preserve the existing CLI contract while making its JSON project
         # immediately available to the new database-backed project catalog.
         projects.create(initial_config)
+        logger.info("Seeded initial project name=%s", initial_config["project_name"])
     state = ProjectState(initial_config)
     app = Flask(__name__)
     frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -139,6 +145,7 @@ def create_app(
 
     def shutdown() -> None:
         """Release timers and optimizer coordinators owned by this app."""
+        logger.info("Shutting down planner backend")
         state_emitter.close()
         workers.shutdown()
         runtimes.close()
@@ -161,6 +168,13 @@ def create_app(
     ).lower() in {"1", "true", "yes"}
     if start_workers and legacy_runtime_enabled:
         start_all(initial_config)
+
+    logger.info(
+        "Planner backend ready projects=%d workers_enabled=%s output_root=%s",
+        len(projects.list(include_archived=True)),
+        start_workers,
+        project_output_root,
+    )
 
     return PlannerApplication(
         app=app,

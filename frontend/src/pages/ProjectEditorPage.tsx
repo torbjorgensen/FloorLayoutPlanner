@@ -26,12 +26,22 @@ interface EditableRoom {
     settings?: Record<string, unknown>;
 }
 
+interface EditableConnection {
+    id: string;
+    room_a: string;
+    room_b: string;
+    type: "open_passage" | "threshold" | "closed_door" | "continuous_then_cut";
+    opening: {x1: NumberField; y1: NumberField; x2: NumberField; y2: NumberField};
+    align: {rows: boolean; joints: boolean};
+    weight: NumberField;
+}
+
 interface EditableConfig {
     project_name: string;
     board: {length_mm: NumberField; width_mm: NumberField; saw_kerf_mm: NumberField};
     settings: Record<string, unknown>;
     rooms: EditableRoom[];
-    connections: unknown[];
+    connections: EditableConnection[];
     [key: string]: unknown;
 }
 
@@ -51,7 +61,13 @@ function clone<T>(value: T): T {
 }
 
 function asConfig(record: ProjectRecord): EditableConfig {
-    return clone(record.config) as unknown as EditableConfig;
+    const config = clone(record.config) as unknown as EditableConfig;
+    config.connections = (config.connections || []).map(connection => ({
+        ...connection,
+        align: {rows: connection.align?.rows ?? true, joints: connection.align?.joints ?? false},
+        weight: connection.weight ?? 1,
+    }));
+    return config;
 }
 
 function numeric(value: NumberField, label: string, positive = false): number {
@@ -60,6 +76,45 @@ function numeric(value: NumberField, label: string, positive = false): number {
         throw new Error(`${label} must be ${positive ? "greater than zero" : "zero or greater"}.`);
     }
     return parsed;
+}
+
+function previewNumber(value: NumberField): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function RoomPreview({room, connections}: {room: EditableRoom; connections: EditableConnection[]}) {
+    const rectangles = room.rectangles.map(rectangle => ({
+        ...rectangle,
+        x: previewNumber(rectangle.x),
+        y: previewNumber(rectangle.y),
+        width: Math.max(0, previewNumber(rectangle.width)),
+        height: Math.max(0, previewNumber(rectangle.height)),
+    }));
+    const minX = Math.min(...rectangles.map(item => item.x), 0);
+    const minY = Math.min(...rectangles.map(item => item.y), 0);
+    const maxX = Math.max(...rectangles.map(item => item.x + item.width), 1);
+    const maxY = Math.max(...rectangles.map(item => item.y + item.height), 1);
+    const span = Math.max(maxX - minX, maxY - minY, 1);
+    const padding = span * .06;
+    const originX = previewNumber(room.origin.x);
+    const originY = previewNumber(room.origin.y);
+    const openings = connections.filter(connection => connection.room_a === room.id || connection.room_b === room.id);
+    return <div className="room-preview">
+        <div className="room-preview-title"><strong>Room preview</strong><span>{Math.round(maxX - minX)} × {Math.round(maxY - minY)} mm</span></div>
+        <svg aria-label={`Preview of ${room.name}`} preserveAspectRatio="xMidYMid meet" role="img" viewBox={`${minX - padding} ${minY - padding} ${maxX - minX + 2 * padding} ${maxY - minY + 2 * padding}`}>
+            {rectangles.map((rectangle, index) => <g key={index}>
+                <rect className="room-preview-area" height={rectangle.height} width={rectangle.width} x={rectangle.x} y={rectangle.y} />
+                {rectangle.width > span * .18 && rectangle.height > span * .08 && <text className="room-preview-label" x={rectangle.x + rectangle.width / 2} y={rectangle.y + rectangle.height / 2}>{rectangle.name || `Area ${index + 1}`}</text>}
+            </g>)}
+            {openings.map(connection => <g key={connection.id}>
+                <line className="room-preview-opening" x1={previewNumber(connection.opening.x1) - originX} x2={previewNumber(connection.opening.x2) - originX} y1={previewNumber(connection.opening.y1) - originY} y2={previewNumber(connection.opening.y2) - originY} />
+                <circle className="room-preview-opening-point" cx={previewNumber(connection.opening.x1) - originX} cy={previewNumber(connection.opening.y1) - originY} r={span * .012} />
+                <circle className="room-preview-opening-point" cx={previewNumber(connection.opening.x2) - originX} cy={previewNumber(connection.opening.y2) - originY} r={span * .012} />
+            </g>)}
+        </svg>
+        <small>Updates as values change. Openings are shown as orange lines in shared floor-plan coordinates.</small>
+    </div>;
 }
 
 function normalized(config: EditableConfig): EditableConfig {
@@ -87,6 +142,21 @@ function normalized(config: EditableConfig): EditableConfig {
             rectangle.width = numeric(rectangle.width, `${prefix} width`, true);
             rectangle.height = numeric(rectangle.height, `${prefix} height`, true);
         });
+    });
+    const connectionIds = new Set<string>();
+    result.connections.forEach((connection, index) => {
+        connection.id = connection.id.trim();
+        if (!connection.id) throw new Error(`Connection ${index + 1} needs an id.`);
+        if (connectionIds.has(connection.id)) throw new Error(`Connection id ${connection.id} is duplicated.`);
+        connectionIds.add(connection.id);
+        if (!ids.has(connection.room_a) || !ids.has(connection.room_b)) throw new Error(`Connection ${connection.id} references an unknown room.`);
+        if (connection.room_a === connection.room_b) throw new Error(`Connection ${connection.id} must connect two different rooms.`);
+        connection.opening.x1 = numeric(connection.opening.x1, `${connection.id} opening X1`);
+        connection.opening.y1 = numeric(connection.opening.y1, `${connection.id} opening Y1`);
+        connection.opening.x2 = numeric(connection.opening.x2, `${connection.id} opening X2`);
+        connection.opening.y2 = numeric(connection.opening.y2, `${connection.id} opening Y2`);
+        if (connection.opening.x1 === connection.opening.x2 && connection.opening.y1 === connection.opening.y2) throw new Error(`Connection ${connection.id} opening needs two distinct endpoints.`);
+        connection.weight = numeric(connection.weight, `${connection.id} weight`, true);
     });
     for (const [key, label] of optimizerFields) {
         if (result.settings[key] !== undefined) {
@@ -158,6 +228,15 @@ export default function ProjectEditorPage() {
         });
     }
 
+    function addConnection() {
+        change(next => {
+            if (next.rooms.length < 2) return;
+            let index = next.connections.length + 1;
+            while (next.connections.some(item => item.id === `connection_${index}`)) index += 1;
+            next.connections.push({id: `connection_${index}`, room_a: next.rooms[0].id, room_b: next.rooms[1].id, type: "open_passage", opening: {x1: 0, y1: 0, x2: 1000, y2: 0}, align: {rows: true, joints: false}, weight: 1});
+        });
+    }
+
     async function save(event: React.FormEvent) {
         event.preventDefault();
         if (!config || !project) return;
@@ -206,11 +285,25 @@ export default function ProjectEditorPage() {
                     <div className="room-editor-heading"><Card.Title>Room {roomIndex + 1}</Card.Title><div>
                         <Button disabled={roomIndex === 0} onClick={() => change(next => {const [item] = next.rooms.splice(roomIndex, 1); next.rooms.splice(roomIndex - 1, 0, item);})} size="sm" type="button" variant="outline-secondary">Move up</Button>{" "}
                         <Button onClick={() => change(next => {const source = clone(next.rooms[roomIndex]); let suffix = 2; let id = `${source.id}_copy`; while (next.rooms.some(item => item.id === id)) id = `${source.id}_copy_${suffix++}`; source.id = id; source.name += " Copy"; next.rooms.splice(roomIndex + 1, 0, source);})} size="sm" type="button" variant="outline-secondary">Duplicate</Button>{" "}
-                        <Button disabled={config.rooms.length === 1} onClick={() => change(next => {const removedId = next.rooms[roomIndex].id; next.rooms.splice(roomIndex, 1); next.connections = next.connections.filter(connection => {const item = connection as {room_a?: string; room_b?: string}; return item.room_a !== removedId && item.room_b !== removedId;});})} size="sm" type="button" variant="outline-danger">Remove</Button>
+                        <Button disabled={config.rooms.length === 1} onClick={() => change(next => {const removedId = next.rooms[roomIndex].id; next.rooms.splice(roomIndex, 1); next.connections = next.connections.filter(connection => connection.room_a !== removedId && connection.room_b !== removedId);})} size="sm" type="button" variant="outline-danger">Remove</Button>
                     </div></div>
                     <div className="editor-grid four"><Form.Group><Form.Label>Name</Form.Label><Form.Control value={room.name} onChange={event => change(next => {next.rooms[roomIndex].name = event.target.value;})} /></Form.Group><Form.Group><Form.Label>Stable id</Form.Label><Form.Control readOnly value={room.id} /><Form.Text>Used by saved connections.</Form.Text></Form.Group>{(["x", "y"] as const).map(axis => <Form.Group key={axis}><Form.Label>Origin {axis.toUpperCase()} (mm)</Form.Label><Form.Control min="0" step="any" type="number" value={room.origin[axis]} onChange={event => change(next => {next.rooms[roomIndex].origin[axis] = event.target.value;})} /></Form.Group>)}</div>
                     <h3>Rectangles</h3>{room.rectangles.map((rectangle, rectangleIndex) => <div className="rectangle-row" key={rectangleIndex}><Form.Group><Form.Label>Name</Form.Label><Form.Control value={rectangle.name || ""} onChange={event => change(next => {next.rooms[roomIndex].rectangles[rectangleIndex].name = event.target.value;})} /></Form.Group>{(["x", "y", "width", "height"] as const).map(key => <Form.Group key={key}><Form.Label>{key[0].toUpperCase() + key.slice(1)} (mm)</Form.Label><Form.Control min="0" step="any" type="number" value={rectangle[key]} onChange={event => change(next => {next.rooms[roomIndex].rectangles[rectangleIndex][key] = event.target.value;})} /></Form.Group>)}<Button disabled={room.rectangles.length === 1} onClick={() => change(next => {next.rooms[roomIndex].rectangles.splice(rectangleIndex, 1);})} type="button" variant="outline-danger">Remove</Button></div>)}
                     <Button onClick={() => change(next => {next.rooms[roomIndex].rectangles.push({name: `Area ${next.rooms[roomIndex].rectangles.length + 1}`, x: 0, y: 0, width: 1000, height: 1000});})} size="sm" type="button" variant="outline-primary">Add rectangle</Button>
+                    <RoomPreview connections={config.connections} room={room} />
+                </Card.Body></Card>)}
+                <div className="rooms-heading"><div><h2>Connections</h2><p>Define openings between rooms. Coordinates use the shared floor-plan coordinate system.</p></div><Button disabled={config.rooms.length < 2} onClick={addConnection} type="button" variant="outline-primary">Add connection</Button></div>
+                {!config.connections.length && <Alert variant="secondary">No room connections defined yet.</Alert>}
+                {config.connections.map((connection, connectionIndex) => <Card className="editor-card" key={connection.id}><Card.Body>
+                    <div className="room-editor-heading"><Card.Title>Connection {connectionIndex + 1}</Card.Title><Button onClick={() => change(next => {next.connections.splice(connectionIndex, 1);})} size="sm" type="button" variant="outline-danger">Remove</Button></div>
+                    <div className="editor-grid four">
+                        <Form.Group><Form.Label>Connection id</Form.Label><Form.Control value={connection.id} onChange={event => change(next => {next.connections[connectionIndex].id = event.target.value;})} /></Form.Group>
+                        {(["room_a", "room_b"] as const).map((key, side) => <Form.Group key={key}><Form.Label>Room {side ? "B" : "A"}</Form.Label><Form.Select value={connection[key]} onChange={event => change(next => {next.connections[connectionIndex][key] = event.target.value;})}>{config.rooms.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Form.Select></Form.Group>)}
+                        <Form.Group><Form.Label>Opening type</Form.Label><Form.Select value={connection.type} onChange={event => change(next => {next.connections[connectionIndex].type = event.target.value as EditableConnection["type"];})}><option value="open_passage">Open passage</option><option value="threshold">Threshold</option><option value="closed_door">Closed door</option>{connection.type === "continuous_then_cut" && <option value="continuous_then_cut">Legacy continuous opening</option>}</Form.Select></Form.Group>
+                    </div>
+                    <h3>Opening line</h3><div className="editor-grid four">{(["x1", "y1", "x2", "y2"] as const).map(key => <Form.Group key={key}><Form.Label>{key.toUpperCase()} (mm)</Form.Label><Form.Control min="0" step="any" type="number" value={connection.opening[key]} onChange={event => change(next => {next.connections[connectionIndex].opening[key] = event.target.value;})} /></Form.Group>)}</div>
+                    <div className="connection-options"><Form.Check checked={connection.align.rows} label="Align rows" onChange={event => change(next => {next.connections[connectionIndex].align.rows = event.target.checked;})} /><Form.Check checked={connection.align.joints} label="Align joints" onChange={event => change(next => {next.connections[connectionIndex].align.joints = event.target.checked;})} /><Form.Group><Form.Label>Weight</Form.Label><Form.Control min="0.01" step="any" type="number" value={connection.weight} onChange={event => change(next => {next.connections[connectionIndex].weight = event.target.value;})} /></Form.Group></div>
+                    {connection.type === "continuous_then_cut" && <Alert className="mt-3 mb-0" variant="warning">This saved connection uses the legacy continuous-layout mode. Select an opening type above to stop planning continuous boards through it.</Alert>}
                 </Card.Body></Card>)}
                 <div className="editor-savebar"><Button disabled={!dirty || saving} onClick={() => {setConfig(JSON.parse(baseline) as EditableConfig); setError(null);}} type="button" variant="outline-secondary">Discard changes</Button><Button disabled={!dirty || saving} type="submit">{saving ? "Saving…" : "Save configuration"}</Button></div>
             </Form>

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +14,8 @@ from floor_layout_planner.web.serialization import build_state_payload
 from floor_layout_planner.web.sockets import StateUpdateEmitter
 from floor_layout_planner.web.state import ProjectState
 from floor_layout_planner.web.workers import WorkerManager, create_worker_manager
+
+logger = logging.getLogger(__name__)
 
 
 class ProjectUnavailableError(LookupError):
@@ -59,6 +62,7 @@ class ProjectRuntimeRegistry:
         with self.lock:
             existing = self.runtimes.get(project_id)
             if existing is not None:
+                logger.debug("Reusing project runtime project_id=%s", project_id)
                 return existing
 
             project = self.projects.get(project_id)
@@ -68,6 +72,12 @@ class ProjectRuntimeRegistry:
                 )
 
             output_dir = self.output_root / project.id
+            logger.info(
+                "Creating project runtime project_id=%s version=%d name=%s",
+                project.id,
+                project.version,
+                project.name,
+            )
             output_dir.mkdir(parents=True, exist_ok=True)
             state = ProjectState(project.config)
             emitter: StateUpdateEmitter | None = None
@@ -114,6 +124,11 @@ class ProjectRuntimeRegistry:
         with self.lock:
             runtime = self.runtimes.pop(project_id, None)
         if runtime is not None:
+            logger.info(
+                "Discarding project runtime project_id=%s version=%d",
+                project_id,
+                runtime.project_version,
+            )
             runtime.close()
 
     def close(self) -> None:
@@ -123,6 +138,8 @@ class ProjectRuntimeRegistry:
             self.runtimes.clear()
         for runtime in runtimes:
             runtime.close()
+        if runtimes:
+            logger.info("Closed project runtimes count=%d", len(runtimes))
 
     def active_project_ids(self) -> set[str]:
         """Return a snapshot of currently allocated runtime identifiers."""
